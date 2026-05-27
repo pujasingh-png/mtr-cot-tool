@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MTR COT Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:       #1a1a18;
+  --paper:     #f4f2ed;
+  --mist:      #e8e5de;
+  --border:    #d0ccc3;
+  --blue:      #1e4d8c;
+  --blue-lt:   #dce8fb;
+  --blue-dk:   #163a6b;
+  --red:       #c94a30;
+  --green:     #1a6b3c;
+  --green-lt:  #d4f0e0;
+  --green-bdr: #5cb88a;
+  --amber:     #e6a800;
+  --amber-lt:  #fff3cd;
+  --amber-bdr: #ffc107;
+}
+
+body {
+  font-family: 'Georgia', serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── HEADER ── */
+.hdr {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 0 28px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  border-bottom: 3px solid #333;
+}
+.hdr-logo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--paper);
+  opacity: 0.9;
+}
+.hdr-sep { width: 1px; height: 22px; background: #444; }
+.hdr-title { font-size: 15px; font-weight: 400; font-style: italic; color: #ccc; }
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+/* Property pill in header */
+.hdr-prop {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: #2a2a28;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 11px;
+  color: #aaa;
+  font-family: 'Courier New', monospace;
+  max-width: 320px;
+}
+.hdr-prop.visible { display: flex; }
+.hdr-prop .prop-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-bdr); flex-shrink: 0; }
+.hdr-prop .prop-name { color: #eee; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-prop .prop-change {
+  color: #888; cursor: pointer; font-size: 10px; white-space: nowrap;
+  border-left: 1px solid #444; padding-left: 8px; margin-left: 4px;
+}
+.hdr-prop .prop-change:hover { color: #ccc; }
+
+/* ── TABS ── */
+.tabs {
+  background: var(--mist);
+  border-bottom: 2px solid var(--border);
+  padding: 0 28px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.tab {
+  padding: 10px 18px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  margin-bottom: -2px;
+  font-family: 'Georgia', serif;
+  position: relative;
+}
+.tab:hover { color: var(--ink); background: #dedad2; }
+.tab.on { color: var(--ink); border-bottom-color: var(--ink); background: var(--paper); }
+
+/* Setup tab special style */
+.tab-setup { border-right: 1px solid var(--border); margin-right: 8px; padding-right: 22px; }
+.tab-setup.on { border-bottom-color: var(--blue); color: var(--blue); }
+.tab-setup .tab-num { background: var(--blue); color: #fff; font-size: 9px; padding: 2px 6px; border-radius: 2px; letter-spacing: 0.1em; }
+
+.tab-phase .tab-num { font-size: 9px; padding: 2px 6px; border-radius: 2px; letter-spacing: 0.08em; color: #fff; }
+.tab-p1 .tab-num { background: var(--ink); }
+.tab-p2 .tab-num { background: var(--red); }
+.tab-p3 .tab-num { background: var(--green); }
+.tab-p1.on { border-bottom-color: var(--ink); }
+.tab-p2.on { border-bottom-color: var(--red); }
+.tab-p3.on { border-bottom-color: var(--green); }
+
+/* locked phase tabs */
+.tab-phase.locked { opacity: 0.45; cursor: not-allowed; }
+.tab-phase.locked:hover { background: transparent; color: #999; }
+.lock-icon { font-size: 10px; }
+
+/* ── PANELS ── */
+.panel { display: none; flex: 1; overflow: hidden; }
+.panel.on { display: flex; }
+
+/* ── SETUP PANEL ── */
+.setup-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 36px 28px 28px;
+  overflow-y: auto;
+  gap: 0;
+}
+
+.setup-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.setup-header h2 {
+  font-size: 22px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.setup-header p {
+  font-size: 12px;
+  color: #888;
+  font-family: Arial, sans-serif;
+  font-style: normal;
+}
+
+.setup-steps {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  max-width: 880px;
+  align-items: flex-start;
+}
+
+.setup-step {
+  flex: 1;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+.setup-step-head {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.step-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+  font-family: Arial, sans-serif;
+}
+.step-num.done { background: var(--green-bdr); border-color: var(--green-bdr); }
+.setup-step-head span { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; font-family: Arial, sans-serif; }
+.setup-step-body { padding: 18px; }
+
+/* arrow between steps */
+.setup-arrow {
+  font-size: 20px;
+  color: var(--border);
+  padding-top: 52px;
+  flex-shrink: 0;
+}
+
+/* ── UPLOAD BOX ── */
+.upbox {
+  background: var(--paper);
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 20px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.upbox:hover { border-color: var(--blue); background: #eef3fb; }
+.upbox.ok { background: var(--green-lt); border-color: var(--green-bdr); border-style: solid; }
+.upbox.ok p { color: var(--green); }
+.upbox .ico { font-size: 28px; margin-bottom: 8px; }
+.upbox p { font-size: 12px; color: #777; line-height: 1.5; font-family: Arial, sans-serif; }
+.upbox strong { color: var(--blue); }
+
+/* ── SEARCH ── */
+.srch-wrap { margin-top: 14px; }
+.srch {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: Arial, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.srch:focus { outline: none; border-color: var(--blue); background: #fff; }
+.plist {
+  max-height: 210px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+.pi {
+  padding: 9px 13px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0ece4;
+  font-size: 12px;
+  transition: background 0.1s;
+  font-family: Arial, sans-serif;
+}
+.pi:last-child { border-bottom: none; }
+.pi:hover { background: #eef3fb; }
+.pi.sel { background: var(--blue); color: #fff; }
+.pi.sel .pa { opacity: 0.75; }
+.pi .pn { font-weight: 700; font-size: 11px; }
+.pi .pa { opacity: 0.6; font-size: 11px; margin-top: 2px; }
+
+/* ── SELECTED PROPERTY CARD ── */
+.prop-selected-card {
+  display: none;
+  background: linear-gradient(135deg, #f0f8f4 0%, #e8f4f0 100%);
+  border: 2px solid var(--green-bdr);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 880px;
+}
+.prop-selected-card.visible { display: block; }
+.psc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.psc-head-left { display: flex; align-items: center; gap: 10px; }
+.psc-check { font-size: 20px; }
+.psc-title { font-size: 13px; font-weight: 700; color: var(--green); font-family: Arial, sans-serif; }
+.psc-sub { font-size: 11px; color: #666; font-family: Arial, sans-serif; margin-top: 1px; }
+.psc-change {
+  font-size: 11px; font-family: Arial, sans-serif;
+  color: #888; cursor: pointer; padding: 5px 10px;
+  border: 1px solid var(--border); border-radius: 4px;
+  background: #fff;
+}
+.psc-change:hover { background: #f0ece4; color: var(--ink); }
+.psc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.psc-field { }
+.psc-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: #888; text-transform: uppercase; margin-bottom: 3px; font-family: Arial, sans-serif; }
+.psc-value { font-size: 12px; color: var(--ink); font-family: 'Courier New', monospace; background: rgba(255,255,255,0.7); padding: 4px 8px; border-radius: 4px; border: 1px solid #c8e8d8; }
+
+/* ── PROCEED BUTTON ── */
+.proceed-btn {
+  display: none;
+  margin-top: 20px;
+  padding: 13px 36px;
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Georgia', serif;
+  letter-spacing: 0.03em;
+  transition: background 0.15s, transform 0.1s;
+}
+.proceed-btn.visible { display: inline-flex; align-items: center; gap: 8px; }
+.proceed-btn:hover { background: #333; transform: translateY(-1px); }
+
+/* ── GATE OVERLAY ── */
+.gate-overlay {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  padding: 40px;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 20px,
+    rgba(0,0,0,0.015) 20px,
+    rgba(0,0,0,0.015) 21px
+  );
+}
+.gate-icon { font-size: 48px; opacity: 0.3; }
+.gate-title { font-size: 18px; font-weight: 400; font-style: italic; color: #666; }
+.gate-sub { font-size: 12px; color: #aaa; font-family: Arial, sans-serif; max-width: 260px; line-height: 1.6; }
+.gate-btn {
+  padding: 10px 24px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  margin-top: 4px;
+}
+.gate-btn:hover { background: var(--blue-dk); }
+
+/* ── PHASE LAYOUT ── */
+.phase-layout { flex: 1; display: flex; overflow: hidden; }
+.phase-left {
+  width: 360px; min-width: 360px;
+  background: var(--mist);
+  border-right: 1px solid var(--border);
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.phase-right { flex: 1; padding: 28px 36px; overflow-y: auto; }
+
+/* Active property strip in phase panels */
+.active-prop-strip {
+  background: #fff;
+  border: 1px solid var(--green-bdr);
+  border-radius: 7px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.aps-left { display: flex; align-items: center; gap: 8px; }
+.aps-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green-bdr); flex-shrink: 0; }
+.aps-id { font-size: 10px; font-weight: 700; color: var(--green); font-family: Arial, sans-serif; letter-spacing: 0.06em; }
+.aps-addr { font-size: 11px; color: #555; font-family: Arial, sans-serif; margin-top: 1px; }
+.aps-change { font-size: 10px; color: #aaa; cursor: pointer; font-family: Arial, sans-serif; white-space: nowrap; }
+.aps-change:hover { color: var(--blue); }
+
+/* ── SECTION LABEL ── */
+.slabel {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  color: #999; text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px; margin-bottom: 10px;
+  font-family: Arial, sans-serif;
+}
+
+/* ── FIELDS ── */
+.fld { margin-bottom: 10px; }
+.fld:last-child { margin-bottom: 0; }
+.fld .lbl { font-size: 11px; font-weight: 600; color: #666; margin-bottom: 3px; font-family: Arial, sans-serif; }
+.fld input, .fld textarea {
+  width: 100%; padding: 7px 10px;
+  border: 1px solid var(--border); border-radius: 5px;
+  font-size: 12px; font-family: Arial, sans-serif;
+  background: #fff;
+}
+.fld textarea { resize: vertical; min-height: 50px; }
+.fld input.af {
+  background: var(--blue-lt); border-color: #9ab8e0;
+  color: var(--blue); font-family: 'Courier New', monospace;
+}
+.hint { font-size: 10px; color: #999; font-style: italic; margin-top: 2px; font-family: Arial, sans-serif; }
+
+/* ── UPLOAD BOX (COT) ── */
+.upbox-cot { border-color: rgba(201,74,48,0.35); }
+.upbox-cot:hover { border-color: var(--red); background: #fef0ed; }
+.upbox-cot.ok { background: #fde8e8; border-color: var(--red); }
+.upbox-cot.ok p { color: var(--red); }
+
+/* ── BUTTONS ── */
+.btn {
+  width: 100%; padding: 12px;
+  border: none; border-radius: 6px;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 4px; font-family: Arial, sans-serif;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn:disabled { background: #ccc !important; color: #999 !important; cursor: not-allowed; transform: none !important; }
+.btn:not(:disabled):hover { transform: translateY(-1px); }
+.btn-dark { background: var(--ink); color: var(--paper); }
+.btn-dark:not(:disabled):hover { background: #333; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-red:not(:disabled):hover { background: #a33a24; }
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:not(:disabled):hover { background: #145530; }
+
+/* ── EMAIL CARD ── */
+.ecard { background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.emeta { background: var(--paper); border-bottom: 1px solid #ddd; padding: 12px 18px; }
+.emrow { display: flex; gap: 8px; font-size: 12px; margin-bottom: 4px; font-family: Arial, sans-serif; }
+.emrow:last-child { margin-bottom: 0; }
+.emk { font-weight: 700; color: #999; min-width: 52px; font-size: 11px; }
+.ebody { padding: 20px 24px; font-size: 13px; line-height: 1.85; white-space: pre-wrap; font-family: Arial, sans-serif; }
+
+/* ── ACTION BTNS ── */
+.abtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border: 1px solid var(--border);
+  border-radius: 5px; font-size: 12px; font-weight: 600;
+  cursor: pointer; background: var(--paper); color: #444;
+  font-family: Arial, sans-serif; transition: background 0.1s;
+}
+.abtn:hover { background: var(--mist); }
+.abtn.green { background: var(--green); color: #fff; border-color: var(--green); }
+.abtn.green:hover { background: #145530; }
+
+/* ── CHIPS ── */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+  font-family: Arial, sans-serif;
+}
+.chip.g { background: var(--green-lt); color: var(--green); border: 1px solid var(--green-bdr); }
+
+/* ── VERIFY RESULTS ── */
+.rbanner { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-radius: 8px; margin-bottom: 14px; }
+.rbanner.pass { background: var(--green-lt); border: 1px solid var(--green-bdr); }
+.rbanner.fail { background: #fde8e8; border: 1px solid #f0b0b0; }
+.rbanner.warn { background: var(--amber-lt); border: 1px solid var(--amber-bdr); }
+.rbanner .rico { font-size: 28px; }
+.rbanner .rtit { font-size: 15px; font-weight: 700; font-family: Arial, sans-serif; }
+.rbanner .rsub { font-size: 11px; color: #777; margin-top: 2px; font-family: Arial, sans-serif; }
+
+.spills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.sp { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; font-family: Arial, sans-serif; }
+.sp.g { background: var(--green-lt); color: var(--green); border: 1px solid var(--green-bdr); }
+.sp.r { background: #fde8e8; color: #8b1a1a; border: 1px solid #f0b0b0; }
+.sp.a { background: var(--amber-lt); color: #7a4f00; border: 1px solid var(--amber-bdr); }
+.sp.b { background: var(--blue-lt); color: var(--blue); border: 1px solid #9ab8e0; }
+
+.ccard { border: 1px solid #ddd; border-radius: 7px; margin-bottom: 8px; background: #fff; overflow: hidden; }
+.chead { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; }
+.chead:hover { background: var(--paper); }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.dot.g { background: var(--green); } .dot.r { background: #8b1a1a; }
+.dot.a { background: var(--amber); } .dot.b { background: var(--blue); }
+.clbl { font-weight: 700; font-size: 12px; flex: 1; font-family: Arial, sans-serif; }
+.cbadge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; font-family: Arial, sans-serif; }
+.cbadge.g { background: var(--green-lt); color: var(--green); border: 1px solid var(--green-bdr); }
+.cbadge.r { background: #fde8e8; color: #8b1a1a; border: 1px solid #f0b0b0; }
+.cbadge.a { background: var(--amber-lt); color: #7a4f00; border: 1px solid var(--amber-bdr); }
+.cbadge.b { background: var(--blue-lt); color: var(--blue); border: 1px solid #9ab8e0; }
+.chev { color: #ccc; font-size: 11px; transition: transform 0.2s; }
+.chev.open { transform: rotate(180deg); }
+.cbody { display: none; padding: 0 14px 12px; border-top: 1px solid #f0ece4; }
+.cbody.open { display: block; }
+.crow { display: grid; grid-template-columns: 90px 1fr; gap: 6px; margin-top: 8px; font-size: 11px; }
+.ck { color: #999; font-weight: 600; padding-top: 3px; font-family: Arial, sans-serif; }
+.cv { font-family: 'Courier New', monospace; font-size: 11px; padding: 3px 7px; border-radius: 3px; line-height: 1.5; }
+.cv.exp { background: var(--green-lt); color: var(--green); }
+.cv.fnd { background: var(--blue-lt); color: var(--blue); }
+.cv.bad { background: #fde8e8; color: #8b1a1a; }
+.cv.wrn { background: var(--amber-lt); color: #7a4f00; }
+.cnote { font-size: 11px; color: #666; margin-top: 8px; padding: 6px 8px; background: var(--paper); border-left: 3px solid #ccc; border-radius: 0 3px 3px 0; line-height: 1.5; font-family: Arial, sans-serif; }
+
+/* ── PLACEHOLDER ── */
+.ph { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 300px; color: #ccc; gap: 12px; }
+.ph p { font-size: 13px; max-width: 280px; line-height: 1.7; font-family: Arial, sans-serif; }
+
+.otitle { font-size: 20px; font-weight: 400; font-style: italic; margin-bottom: 18px; }
+.orow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 8px; }
+
+/* LIR table */
+.lir-table-wrap { background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.lir-table-head { background: var(--ink); color: var(--paper); padding: 12px 18px; font-size: 13px; font-weight: 700; font-family: Arial, sans-serif; }
+.lir-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.lir-table td { padding: 8px 14px; border-bottom: 1px solid #f0ece4; font-family: Arial, sans-serif; font-size: 12px; }
+.lir-table tr:nth-child(even) td { background: #fafaf8; }
+.lir-table .td-lbl { color: #777; width: 45%; }
+
+/* QC items */
+.qc-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 13px; border-radius: 6px; margin-bottom: 6px;
+  font-size: 12px; font-family: Arial, sans-serif;
+}
+.qc-item.ok { background: var(--green-lt); border: 1px solid var(--green-bdr); }
+.qc-item.fail { background: #fde8e8; border: 1px solid #f0b0b0; }
+.qc-item .qc-ico { font-size: 16px; }
+.qc-item .qc-lbl { font-weight: 700; }
+.qc-item.ok .qc-lbl { color: var(--green); }
+.qc-item.fail .qc-lbl { color: #8b1a1a; }
+.qc-item .qc-val { color: #666; margin-top: 1px; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══ -->
+<div class="hdr">
+  <div class="hdr-logo">IH MTR VII DAC</div>
+  <div class="hdr-sep"></div>
+  <div class="hdr-title">Mortgage to Rent — COT Tool</div>
+  <div class="hdr-right">
+    <div class="hdr-prop" id="hdrProp">
+      <div class="prop-dot"></div>
+      <div>
+        <div class="prop-name" id="hdrPropName">—</div>
+        <div style="font-size:10px;color:#777;margin-top:1px" id="hdrPropAddr"></div>
+      </div>
+      <div class="prop-change" onclick="goSetup()">↩ Change</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TABS ══ -->
+<div class="tabs">
+  <div class="tab tab-setup on" id="tabSetup" onclick="showTab('setup')">
+    <span class="tab-num">SETUP</span> Upload &amp; Select
+  </div>
+  <div class="tab tab-phase tab-p1 locked" id="tabP1" onclick="tryTab('p1')">
+    <span class="tab-num">PHASE 1</span> Request COT
+    <span class="lock-icon" id="lockP1">🔒</span>
+  </div>
+  <div class="tab tab-phase tab-p2 locked" id="tabP2" onclick="tryTab('p2')">
+    <span class="tab-num">PHASE 2</span> Verify COT
+    <span class="lock-icon" id="lockP2">🔒</span>
+  </div>
+  <div class="tab tab-phase tab-p3 locked" id="tabP3" onclick="tryTab('p3')">
+    <span class="tab-num">PHASE 3</span> LIR &amp; Submit
+    <span class="lock-icon" id="lockP3">🔒</span>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     SETUP PANEL
+══════════════════════════════════ -->
+<div class="panel on" id="panelSetup">
+  <div class="setup-wrap">
+
+    <div class="setup-header">
+      <h2>Getting Started</h2>
+      <p>Complete both steps below once — your selection will carry through all three phases automatically.</p>
+    </div>
+
+    <div class="setup-steps">
+
+      <!-- Step 1: Upload -->
+      <div class="setup-step">
+        <div class="setup-step-head">
+          <div class="step-num" id="stepNum1">1</div>
+          <span>Upload MTR Database</span>
+        </div>
+        <div class="setup-step-body">
+          <div class="upbox" id="ubSetup" onclick="document.getElementById('fSetup').click()">
+            <div class="ico">📊</div>
+            <p id="ubSetupTxt"><strong>Click to upload</strong> MTR Excel<br><small style="opacity:0.7">MTR_Data_Live.xlsx</small></p>
+          </div>
+          <input type="file" id="fSetup" accept=".xlsx,.xls" style="display:none" onchange="loadExcel(this)">
+          <div id="setupStep2Hint" style="display:none;margin-top:12px;font-size:11px;color:var(--green);font-family:Arial,sans-serif;text-align:center">
+            ✓ Database loaded — now select a property below →
+          </div>
+        </div>
+      </div>
+
+      <div class="setup-arrow">→</div>
+
+      <!-- Step 2: Select Property -->
+      <div class="setup-step" style="flex:1.4">
+        <div class="setup-step-head">
+          <div class="step-num" id="stepNum2">2</div>
+          <span>Select Property</span>
+        </div>
+        <div class="setup-step-body">
+          <div id="setupSelectPlaceholder" style="text-align:center;padding:20px 0;color:#ccc;font-size:12px;font-family:Arial,sans-serif">
+            <div style="font-size:28px;margin-bottom:8px">⬅</div>
+            Upload your database first
+          </div>
+          <div id="setupSelectWrap" style="display:none">
+            <input class="srch" type="text" placeholder="🔍  Search name, address, IH ID…" oninput="filterSetupList(this.value)" id="setupSrch">
+            <div class="plist" id="setupList"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Selected property summary card -->
+    <div class="prop-selected-card" id="propCard">
+      <div class="psc-head">
+        <div class="psc-head-left">
+          <div class="psc-check">✅</div>
+          <div>
+            <div class="psc-title" id="pscTitle">Property Selected</div>
+            <div class="psc-sub" id="pscSub"></div>
+          </div>
+        </div>
+        <button class="psc-change" onclick="clearSelection()">✕ Change Selection</button>
+      </div>
+      <div class="psc-grid" id="pscGrid"></div>
+    </div>
+
+    <!-- Proceed button -->
+    <button class="proceed-btn" id="proceedBtn" onclick="proceedToPhase1()">
+      Proceed to Phase 1 — Request COT →
+    </button>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     PHASE 1 PANEL
+══════════════════════════════════ -->
+<div class="panel" id="panelP1">
+
+  <!-- GATE -->
+  <div class="gate-overlay" id="gateP1" style="display:none">
+    <div class="gate-icon">🔒</div>
+    <div class="gate-title">No property selected</div>
+    <div class="gate-sub">Please complete the Setup step first — upload your database and select a property.</div>
+    <button class="gate-btn" onclick="goSetup()">← Go to Setup</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="phase-layout" id="contentP1" style="display:none">
+    <div class="phase-left">
+
+      <!-- Active property strip -->
+      <div class="active-prop-strip" id="apsP1">
+        <div class="aps-left">
+          <div class="aps-dot"></div>
+          <div>
+            <div class="aps-id" id="apsP1Id"></div>
+            <div class="aps-addr" id="apsP1Addr"></div>
+          </div>
+        </div>
+        <div class="aps-change" onclick="goSetup()">Change ↩</div>
+      </div>
+
+      <div>
+        <div class="slabel">Confirm Details</div>
+        <div class="fld"><div class="lbl">Borrower / Resident</div><input class="af" id="p1bor" readonly></div>
+        <div class="fld"><div class="lbl">Property Address</div><input class="af" id="p1adr" readonly></div>
+        <div class="fld">
+          <div class="lbl">Annual Rent (€)</div>
+          <input class="af" id="p1rnt" readonly>
+          <div class="hint" id="p1rntH"></div>
+        </div>
+        <div class="fld"><div class="lbl">County Council</div><input class="af" id="p1cou" readonly></div>
+        <div class="fld"><div class="lbl">Council Address</div><textarea class="af" id="p1cadr" rows="2" readonly></textarea></div>
+        <div class="fld"><div class="lbl">Gale Day</div><input class="af" id="p1gal" readonly></div>
+      </div>
+
+      <button class="btn btn-dark" onclick="genEmail()">▶ Generate COT Request Email</button>
+
+    </div>
+    <div class="phase-right">
+      <div class="ph" id="p1ph">
+        <div style="font-size:44px">✉️</div>
+        <p>Review the confirmed details on the left, then click Generate to produce the COT request email.</p>
+      </div>
+      <div id="p1out" style="display:none"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════
+     PHASE 2 PANEL
+══════════════════════════════════ -->
+<div class="panel" id="panelP2">
+
+  <div class="gate-overlay" id="gateP2" style="display:none">
+    <div class="gate-icon">🔒</div>
+    <div class="gate-title">No property selected</div>
+    <div class="gate-sub">Please complete the Setup step first — upload your database and select a property.</div>
+    <button class="gate-btn" onclick="goSetup()">← Go to Setup</button>
+  </div>
+
+  <div class="phase-layout" id="contentP2" style="display:none">
+    <div class="phase-left">
+
+      <div class="active-prop-strip">
+        <div class="aps-left">
+          <div class="aps-dot"></div>
+          <div>
+            <div class="aps-id" id="apsP2Id"></div>
+            <div class="aps-addr" id="apsP2Addr"></div>
+          </div>
+        </div>
+        <div class="aps-change" onclick="goSetup()">Change ↩</div>
+      </div>
+
+      <div>
+        <div class="slabel">Expected Values</div>
+        <div class="fld"><div class="lbl">Property Address</div><input class="af" id="p2adr" readonly></div>
+        <div class="fld"><div class="lbl">Annual Rent</div><input class="af" id="p2rnt" readonly></div>
+        <div class="fld"><div class="lbl">County Council</div><input class="af" id="p2cou" readonly></div>
+        <div class="fld"><div class="lbl">Gale Day</div><input class="af" id="p2gal" readonly></div>
+        <div class="fld"><div class="lbl">Folio Number</div><input class="af" id="p2fol" readonly></div>
+        <div class="fld"><div class="lbl">Client Name (locked)</div><input class="af" value="IH MTR VII DAC" readonly></div>
+      </div>
+
+      <div>
+        <div class="slabel">Upload Received COT</div>
+        <div class="upbox upbox-cot" id="ub4" onclick="document.getElementById('f4').click()">
+          <div class="ico">📄</div>
+          <p id="ub4txt"><strong>Click to upload</strong> received COT<br><small style="opacity:0.7">.docx or .pdf from Legals</small></p>
+        </div>
+        <input type="file" id="f4" accept=".docx,.pdf" style="display:none" onchange="loadCOT(this)">
+      </div>
+
+      <button class="btn btn-red" id="p2verBtn" onclick="runVerify()" disabled>🔍 Run Verification</button>
+
+    </div>
+    <div class="phase-right">
+      <div class="ph" id="p2ph">
+        <div style="font-size:44px">🔍</div>
+        <p>Upload the received COT document, then run verification to check it against your database.</p>
+      </div>
+      <div id="p2out" style="display:none"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════
+     PHASE 3 PANEL
+══════════════════════════════════ -->
+<div class="panel" id="panelP3">
+
+  <div class="gate-overlay" id="gateP3" style="display:none">
+    <div class="gate-icon">🔒</div>
+    <div class="gate-title">No property selected</div>
+    <div class="gate-sub">Please complete the Setup step first — upload your database and select a property.</div>
+    <button class="gate-btn" onclick="goSetup()">← Go to Setup</button>
+  </div>
+
+  <div class="phase-layout" id="contentP3" style="display:none">
+    <div class="phase-left">
+
+      <div class="active-prop-strip">
+        <div class="aps-left">
+          <div class="aps-dot"></div>
+          <div>
+            <div class="aps-id" id="apsP3Id"></div>
+            <div class="aps-addr" id="apsP3Addr"></div>
+          </div>
+        </div>
+        <div class="aps-change" onclick="goSetup()">Change ↩</div>
+      </div>
+
+      <div>
+        <div class="slabel">LIR Fields</div>
+        <div style="background:var(--green-lt);border:1px solid var(--green-bdr);border-radius:6px;padding:9px 12px;margin-bottom:12px;font-size:11px;color:var(--green);font-weight:600;font-family:Arial,sans-serif">
+          🔒 Locked — pre-filled from IH MTR VII DAC records
+        </div>
+        <div class="fld"><div class="lbl">Name of Lessor</div><input class="af" value="IH MTR VII LTD acting through its general partner Manustin Holdings LTD trading as Irish Homes" readonly></div>
+        <div class="fld"><div class="lbl">Address of Lessor</div><input class="af" value="FDW House, Blackthorn Business Park, Coes Road, Dundalk, Louth" readonly></div>
+        <div class="fld"><div class="lbl">Contact Name &amp; Email</div><input class="af" value="Ann Cowan  accounts@irishhomes.ie" readonly></div>
+        <div class="fld"><div class="lbl">Lessor's Solicitor</div><input class="af" value="Grainne Loughnane, Kane Tuohy LLP, Hambledon House, 19-26 Pembroke Street Lower, Dublin 2" readonly></div>
+        <div class="fld"><div class="lbl">Lessor's Surveyor</div><input class="af" value="Anthony Gannon, Premier Irish Homes, Unit 35, Orion Business Park, Ballycoolin, Dublin 15, D15 KP74" readonly></div>
+        <div class="fld"><div class="lbl">Draft COT Included</div><input class="af" value="Yes" readonly></div>
+        <div class="fld"><div class="lbl">Lease Term</div><input class="af" value="25 Years" readonly></div>
+
+        <div style="background:var(--amber-lt);border:1px solid var(--amber-bdr);border-radius:6px;padding:9px 12px;margin:12px 0;font-size:11px;color:#7a4f00;font-weight:600;font-family:Arial,sans-serif">
+          ✏️ Auto-filled from your database
+        </div>
+        <div class="fld"><div class="lbl">Borrower(s) Name</div><input id="p3bor" class="af" readonly></div>
+        <div class="fld"><div class="lbl">Property Address</div><input id="p3adr" class="af" readonly></div>
+        <div class="fld"><div class="lbl">Eircode</div><input id="p3eir" class="af" readonly></div>
+        <div class="fld"><div class="lbl">Folio No.</div><input id="p3fol" class="af" readonly></div>
+      </div>
+
+      <button class="btn btn-green" onclick="genLIR()">📋 Prepare LIR Document</button>
+
+    </div>
+    <div class="phase-right">
+      <div class="ph" id="p3ph">
+        <div style="font-size:44px">📋</div>
+        <p>Review the LIR fields on the left, then generate the populated template for submission to the Housing Agency.</p>
+      </div>
+      <div id="p3out" style="display:none">
+        <div class="orow">
+          <div class="otitle">LIR Preview</div>
+          <a id="p3dlBtn" style="display:none;align-items:center;gap:6px;padding:9px 18px;background:var(--green);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;text-decoration:none;transition:background 0.15s" onmouseover="this.style.background='#145530'" onmouseout="this.style.background='var(--green)'">⬇ Download .docx</a>
+        </div>
+        <div id="p3qc" style="display:none;margin-bottom:20px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;font-family:Arial,sans-serif">Final QC Check — LIR vs COT</div>
+          <div id="p3qcItems"></div>
+        </div>
+        <div class="lir-table-wrap">
+          <div class="lir-table-head">Information Required for the Pre-population of the AFL and Lease</div>
+          <div class="lir-table">
+          <table>
+            <tr style="background:#f0f8f4"><td colspan="2" style="padding:10px 14px;font-weight:700;color:var(--green);border-bottom:1px solid #ddd">Lessor</td></tr>
+            <tr><td class="td-lbl">Name of Lessor:</td><td>IH MTR VII LTD acting through its general partner Manustin Holdings LTD trading as Irish Homes</td></tr>
+            <tr><td class="td-lbl">Address of Lessor:</td><td>FDW House, Blackthorn Business Park, Coes Road, Dundalk, Louth</td></tr>
+            <tr><td class="td-lbl">Contact Name &amp; Email:</td><td>Ann Cowan &nbsp; accounts@irishhomes.ie</td></tr>
+            <tr><td class="td-lbl">Lessor's Solicitor:</td><td>Grainne Loughnane, Kane Tuohy LLP, Hambledon House, 19-26 Pembroke Street Lower, Dublin 2</td></tr>
+            <tr><td class="td-lbl">Lessor's Surveyor:</td><td>Anthony Gannon, Premier Irish Homes, Unit 35, Orion Business Park, Ballycoolin, Dublin 15, D15 KP74</td></tr>
+            <tr><td class="td-lbl">Borrower(s) Name:</td><td id="pv3bor">—</td></tr>
+            <tr><td class="td-lbl">Property Address:</td><td id="pv3adr">—</td></tr>
+            <tr><td class="td-lbl">Eircode:</td><td id="pv3eir">—</td></tr>
+            <tr><td class="td-lbl">Folio No:</td><td id="pv3fol">—</td></tr>
+            <tr><td class="td-lbl">Draft COT Included:</td><td>Yes</td></tr>
+            <tr><td class="td-lbl">Lease Term:</td><td>25 Years</td></tr>
+            <tr><td class="td-lbl">Target Date:</td><td id="pv3dat">—</td></tr>
+          </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// COUNCIL DATA
+// ═══════════════════════════════════════════════════
+const CC = {
+  "Carlow CC":          {full:"Carlow County Council",                  addr:"County Buildings, Athy Road, Carlow, R93 E7R7",                                                   eir:"R93 E7R7",  gale:"Last Monday of each Month"},
+  "Cavan CC":           {full:"Cavan County Council",                   addr:"Cavan Courthouse, Farnham Street, Cavan, Co. Cavan, H12 R6V2",                                   eir:"H12 R6V2",  gale:"Flexible"},
+  "Clare CC":           {full:"Clare County Council",                   addr:"New Road, Ennis, Co. Clare, V95 DXP2",                                                            eir:"V95 DXP2",  gale:"Monthly on 1st or 2nd Friday of every month"},
+  "Cork CC":            {full:"Cork County Council",                    addr:"County Hall, Carrigrohane Road, Cork, T12 R2NC",                                                  eir:"T12 R2NC",  gale:"Quarterly in advance"},
+  "Cork City":          {full:"Cork City Council",                      addr:"City Hall, Anglesea Street, Cork, T12 T997",                                                      eir:"T12 T997",  gale:"1st Friday of every Quarter"},
+  "Donegal CC":         {full:"Donegal County Council",                 addr:"Public Service Centre, Drumlonagher, Donegal, Co. Donegal, F94 DK6C",                            eir:"F94 DK6C",  gale:"Last Friday of every month"},
+  "DC-DCC":             {full:"Dublin City Council",                    addr:"Civic Offices, Wood Quay, Dublin 8, D08 RF3F",                                                   eir:"D08 RF3F",  gale:"The first Monday after the first Friday of every month"},
+  "DC-DLR CC":          {full:"Dun Laoghaire Rathdown County Council", addr:"County Hall, Marine Road, Dún Laoghaire, Co.Dublin, A96 K6C9",                                  eir:"A96 K6C9",  gale:"Quarterly in advance"},
+  "DC-FCC":             {full:"Fingal County Council",                  addr:"County Hall, Main Street, Swords, Co Dublin, K67 X8Y2",                                          eir:"K67 X8Y2",  gale:"First Friday of every month"},
+  "DC-SDCC":            {full:"South Dublin County Council",            addr:"Leasing Section, County Hall, Tallaght, Dublin 24, D24 YNN5",                                    eir:"D24 YNN5",  gale:"Last Friday of the month"},
+  "Galway CC":          {full:"Galway County Council",                  addr:"County Hall, Prospect Hill, Galway, H91 H6KX",                                                   eir:"H91 H6KX",  gale:"Last Thursday of the month"},
+  "Galway City":        {full:"Galway City Council",                    addr:"City Hall, College Road, Galway, H91 X4K8",                                                      eir:"H91 X4K8",  gale:"First working day of the month"},
+  "Kerry CC":           {full:"Kerry County Council",                   addr:"Voluntary Housing Section, Housing Department, Rathass, Tralee, Co. Kerry, V92 H7VT",            eir:"V92 H7VT",  gale:"First Friday of every month"},
+  "Kildare CC":         {full:"Kildare County Council",                 addr:"Áras Chill Dara, Devoy Park, Naas, Co Kildare, W91 X77F",                                       eir:"W91 X77F",  gale:"Last day of each month"},
+  "Kilkenny CC":        {full:"Kilkenny County Council",                addr:"Housing Department, Johns Green House, Johns Green, Kilkenny, R95 CX92",                         eir:"R95 CX92",  gale:"First Friday of every month"},
+  "Laois CC":           {full:"Laois County Council",                   addr:"Áras an Chontae, JFL Avenue, Portlaoise, Co. Laois, R32 EHP9",                                  eir:"R32 EHP9",  gale:"The first day of every month"},
+  "Leitrim CC":         {full:"Leitrim County Council",                 addr:"Áras An Chontae, St. George's Terrace, Carrick on Shannon, Co Leitrim, N41 PF67",               eir:"N41 PF67",  gale:"Last Tuesday or Wednesday of every month"},
+  "Limerick City & Co": {full:"Limerick City & County Council",         addr:"City Hall, Merchants Quay, Limerick City, V94 EH90",                                             eir:"V94 EH90",  gale:"First Friday of every month"},
+  "Longford CC":        {full:"Longford County Council",                addr:"Housing Section, Town Hall, Market Square, Longford, N39C5F2",                                   eir:"N39C5F2",   gale:"Last Friday of every month"},
+  "Louth CC":           {full:"Louth County Council",                   addr:"County Hall, Millennium Centre, Dundalk, Co. Louth, A91 KFW6",                                   eir:"A91 KFW6",  gale:"First Thursday of every month"},
+  "Mayo CC":            {full:"Mayo County Council",                    addr:"Housing Department, College House, Station Rd., Swinford, Co. Mayo, F12 V126",                   eir:"F12 V126",  gale:"First Friday of the month"},
+  "Meath CC":           {full:"Meath County Council",                   addr:"Buvinda House, Dublin Road, Navan, Co. Meath, C15 Y291",                                         eir:"C15 Y291",  gale:"Quarterly in advance — First Friday in the Quarter"},
+  "Monaghan CC":        {full:"Monaghan County Council",                addr:"County Offices, The Glen, Monaghan, H18 YT50",                                                   eir:"H18 YT50",  gale:"The last day of each Quarter"},
+  "Offaly CC":          {full:"Offaly County Council",                  addr:"Áras an Chontae, Charleville Road, Tullamore, Co. Offaly, R35 F893",                            eir:"R35 F893",  gale:"First Saturday of each calendar month"},
+  "Roscommon CC":       {full:"Roscommon County Council",               addr:"Housing Section, Áras an Chontae, Roscommon, County Roscommon, F42 VR98",                       eir:"F42 VR98",  gale:"First Friday of each month"},
+  "Sligo CC":           {full:"Sligo County Council",                   addr:"County Hall, Riverside, Sligo, F91 V763",                                                        eir:"F91 Y763",  gale:"On the 10th Day of each Quarter (January, April, July, October)"},
+  "Tipperary CC":       {full:"Tipperary County Council",               addr:"Civic Offices, Nenagh, Co Tipperary, E45 A099",                                                  eir:"E45 A099",  gale:"The last day of the month"},
+  "Waterford City & Co":{full:"Waterford City & County Council",        addr:"Housing Department, Bailey's New Street, Waterford, X91 XH42",                                   eir:"X91 XH42",  gale:"First day of every month"},
+  "Westmeath CC":       {full:"Westmeath County Council",               addr:"Aras An Chontae, Mount Street, Mullingar, Co. Westmeath, N91 FH4N",                             eir:"N91 FH4N",  gale:"The first day of each calendar month"},
+  "Wexford CC":         {full:"Wexford County Council",                 addr:"County Hall, Carricklawn, Wexford, Y35 WY93",                                                    eir:"Y35 WY93",  gale:"First Tuesday of every month"},
+  "Wicklow CC":         {full:"Wicklow County Council",                 addr:"Social Development (Housing & Community), Wicklow County Council, Station Road, Wicklow Town, A67 FW96", eir:"A67 FW96", gale:"On a monthly or Quarterly basis"},
+};
+
+const COL = {ID:0, ADDR:1, EIR:2, LA:3, FOLIO:4, RES:5, RES2:6, RENT:7};
+
+// ── Shared state ──
+let allProps  = [];   // full list from Excel
+let selProp   = null; // the one selected property
+let cotText   = '';
+let cotFile   = '';
+let p1Email   = '';
+
+// ═══════════════════════════════════════════════════
+// TAB NAVIGATION
+// ═══════════════════════════════════════════════════
+// Normalise any phase key to the capitalised suffix used in element IDs
+// 'setup' → 'Setup', 'p1'/'P1' → 'P1', 'p2'/'P2' → 'P2', 'p3'/'P3' → 'P3'
+function phaseKey(t) {
+  if (!t) return '';
+  const s = String(t).toLowerCase();
+  if (s === 'setup') return 'Setup';
+  // p1, p2, p3
+  return s.toUpperCase().replace(/^P/, 'P'); // 'p1' → 'P1'
+}
+
+function showTab(t) {
+  const key = phaseKey(t);
+  // Hide all panels & deactivate all tabs
+  ['Setup','P1','P2','P3'].forEach(k => {
+    document.getElementById('panel' + k).classList.remove('on');
+  });
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('on'));
+  // Show target
+  document.getElementById('panel' + key).classList.add('on');
+  document.getElementById('tab'   + key).classList.add('on');
+}
+
+function tryTab(phase) {
+  if (!selProp) {
+    // Show gate then navigate to that panel
+    const key = phaseKey(phase);
+    document.getElementById('gate'    + key).style.display = 'flex';
+    document.getElementById('content' + key).style.display = 'none';
+    showTab(phase);
+    return;
+  }
+  hideGate(phase);
+  showTab(phase);
+}
+
+function showGate(phase) {
+  const key = phaseKey(phase);
+  document.getElementById('gate'    + key).style.display = 'flex';
+  document.getElementById('content' + key).style.display = 'none';
+}
+
+function hideGate(phase) {
+  const key = phaseKey(phase);
+  document.getElementById('gate'    + key).style.display = 'none';
+  document.getElementById('content' + key).style.display = 'flex';
+}
+
+function goSetup() {
+  showTab('setup');
+}
+
+function unlockTabs() {
+  ['P1','P2','P3'].forEach(k => {
+    document.getElementById('tab'  + k).classList.remove('locked');
+    document.getElementById('lock' + k).style.display = 'none';
+  });
+}
+
+function lockTabs() {
+  ['P1','P2','P3'].forEach(k => {
+    document.getElementById('tab'  + k).classList.add('locked');
+    document.getElementById('lock' + k).style.display = '';
+  });
+}
+
+function proceedToPhase1() {
+  hideGate('p1');
+  showTab('p1');
+}
+
+// ═══════════════════════════════════════════════════
+// EXCEL LOAD (single shared loader)
+// ═══════════════════════════════════════════════════
+function loadExcel(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb   = XLSX.read(e.target.result, {type:'array'});
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      let hi = -1;
+      for (let i = 0; i < Math.min(10, rows.length); i++) {
+        if (String(rows[i][COL.ID]).includes('IH ID')) { hi = i; break; }
+      }
+      const ds = hi >= 0 ? hi + 1 : 3;
+      const list = [];
+      for (let i = ds; i < rows.length; i++) {
+        const r = rows[i];
+        const id   = String(r[COL.ID]   || '').trim();
+        const addr = String(r[COL.ADDR] || '').trim();
+        const la   = String(r[COL.LA]   || '').trim();
+        const res1 = String(r[COL.RES]  || '').trim();
+        const res2 = String(r[COL.RES2] || '').trim();
+        const res2clean = /^n\/?a$/i.test(res2) ? '' : res2;
+        const res  = res2clean ? res1 + ', ' + res2clean : res1;
+        const eir  = String(r[COL.EIR]  || '').trim();
+        const rent = r[COL.RENT];
+        const folio = String(r[COL.FOLIO] || '').trim();
+        if (!id || !addr || id === 'IH ID') continue;
+        list.push({id, addr, la, res, eir, rent, folio});
+      }
+      allProps = list;
+
+      // Update upload box
+      const ub = document.getElementById('ubSetup');
+      ub.classList.add('ok');
+      document.getElementById('ubSetupTxt').innerHTML =
+        '✅ <strong>' + esc(file.name) + '</strong><br><small>' + list.length + ' properties loaded</small>';
+      document.getElementById('stepNum1').classList.add('done');
+      document.getElementById('stepNum1').textContent = '✓';
+
+      // Show property selector
+      document.getElementById('setupSelectPlaceholder').style.display = 'none';
+      document.getElementById('setupSelectWrap').style.display = 'block';
+      document.getElementById('setupStep2Hint').style.display = 'block';
+      renderSetupList(allProps);
+
+    } catch(err) { alert('Error reading Excel: ' + err.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══════════════════════════════════════════════════
+// SETUP PROPERTY LIST
+// ═══════════════════════════════════════════════════
+function filterSetupList(q) {
+  const ql = q.toLowerCase();
+  const filtered = ql
+    ? allProps.filter(p =>
+        p.addr.toLowerCase().includes(ql) ||
+        p.res.toLowerCase().includes(ql)  ||
+        p.id.toLowerCase().includes(ql))
+    : allProps;
+  renderSetupList(filtered);
+}
+
+function renderSetupList(list) {
+  const el = document.getElementById('setupList');
+  if (!list.length) {
+    el.innerHTML = '<div style="padding:12px;text-align:center;color:#bbb;font-size:12px;font-family:Arial,sans-serif">No results</div>';
+    return;
+  }
+  el.innerHTML = list.map(p => {
+    const isSel = selProp && selProp.id === p.id;
+    return `<div class="pi${isSel?' sel':''}" onclick="selectProperty('${esc(p.id)}')">
+      <div class="pn">${esc(p.id)} — ${esc(p.res || 'Unknown')}</div>
+      <div class="pa">${esc(p.addr)}</div>
+    </div>`;
+  }).join('');
+}
+
+function selectProperty(id) {
+  selProp = allProps.find(p => p.id === id);
+  if (!selProp) return;
+
+  // Re-render list to show highlight
+  const q = document.getElementById('setupSrch').value;
+  filterSetupList(q);
+
+  // Mark step 2 done
+  document.getElementById('stepNum2').classList.add('done');
+  document.getElementById('stepNum2').textContent = '✓';
+
+  // Show property card
+  showPropertyCard(selProp);
+
+  // Populate all phase fields
+  populateAllPhases(selProp);
+
+  // Unlock tabs
+  unlockTabs();
+
+  // Show proceed button
+  const pb = document.getElementById('proceedBtn');
+  pb.classList.add('visible');
+
+  // Update header pill
+  document.getElementById('hdrProp').classList.add('visible');
+  document.getElementById('hdrPropName').textContent = selProp.id;
+  document.getElementById('hdrPropAddr').textContent = selProp.addr.substring(0, 45);
+}
+
+function showPropertyCard(p) {
+  const cc = CC[p.la];
+  const rv = parseFloat(p.rent) || 0;
+  const rs = rv ? '€' + rv.toLocaleString('en-IE', {minimumFractionDigits:2}) : 'Not in database';
+
+  document.getElementById('pscTitle').textContent = p.id + ' — ' + (p.res || 'Unknown Resident');
+  document.getElementById('pscSub').textContent = p.addr;
+
+  document.getElementById('pscGrid').innerHTML = `
+    <div class="psc-field"><div class="psc-label">Address</div><div class="psc-value">${esc(p.addr)}</div></div>
+    <div class="psc-field"><div class="psc-label">Annual Rent</div><div class="psc-value">${esc(rs)}</div></div>
+    <div class="psc-field"><div class="psc-label">Eircode</div><div class="psc-value">${esc(p.eir || '—')}</div></div>
+    <div class="psc-field"><div class="psc-label">County Council</div><div class="psc-value">${esc(cc ? cc.full : p.la)}</div></div>
+    <div class="psc-field"><div class="psc-label">Gale Day</div><div class="psc-value">${esc(cc ? cc.gale : '—')}</div></div>
+    <div class="psc-field"><div class="psc-label">Folio No.</div><div class="psc-value">${esc(p.folio || '—')}</div></div>
+  `;
+  document.getElementById('propCard').classList.add('visible');
+}
+
+function clearSelection() {
+  selProp = null;
+  document.getElementById('propCard').classList.remove('visible');
+  document.getElementById('proceedBtn').classList.remove('visible');
+  document.getElementById('hdrProp').classList.remove('visible');
+  document.getElementById('stepNum2').classList.remove('done');
+  document.getElementById('stepNum2').textContent = '2';
+  lockTabs();
+  // Clear search highlight
+  renderSetupList(allProps);
+}
+
+// ═══════════════════════════════════════════════════
+// POPULATE ALL PHASES FROM SELECTED PROPERTY
+// ═══════════════════════════════════════════════════
+function populateAllPhases(p) {
+  const cc = CC[p.la];
+  const rv = parseFloat(p.rent) || 0;
+  const rs = rv ? '€' + rv.toLocaleString('en-IE', {minimumFractionDigits:2}) : 'Not in database';
+
+  // ── Phase 1 ──
+  document.getElementById('p1bor').value  = p.res || '—';
+  document.getElementById('p1adr').value  = p.addr;
+  document.getElementById('p1rnt').value  = rs;
+  document.getElementById('p1rntH').textContent = rv ? '' : '⚠ Not in database — check Funding Approval Letter';
+  document.getElementById('p1cou').value  = cc ? cc.full : p.la;
+  document.getElementById('p1cadr').value = cc ? cc.addr : '';
+  document.getElementById('p1gal').value  = cc ? cc.gale : '';
+  document.getElementById('apsP1Id').textContent   = p.id;
+  document.getElementById('apsP1Addr').textContent = p.addr.substring(0, 55);
+
+  // ── Phase 2 ──
+  document.getElementById('p2adr').value = p.addr;
+  document.getElementById('p2rnt').value = rs;
+  document.getElementById('p2cou').value = cc ? cc.full : p.la;
+  document.getElementById('p2gal').value = cc ? cc.gale : '';
+  document.getElementById('p2fol').value = p.folio || '(not in database)';
+  document.getElementById('apsP2Id').textContent   = p.id;
+  document.getElementById('apsP2Addr').textContent = p.addr.substring(0, 55);
+
+  // ── Phase 3 ──
+  document.getElementById('p3bor').value = p.res || '—';
+  document.getElementById('p3adr').value = p.addr;
+  document.getElementById('p3eir').value = p.eir || '';
+  document.getElementById('p3fol').value = p.folio || '(not in database)';
+  document.getElementById('apsP3Id').textContent   = p.id;
+  document.getElementById('apsP3Addr').textContent = p.addr.substring(0, 55);
+
+  // Phase 2 verify button depends on COT too
+  checkP2Ready();
+}
+
+// ═══════════════════════════════════════════════════
+// COT LOAD
+// ═══════════════════════════════════════════════════
+async function loadCOT(input) {
+  const file = input.files[0]; if (!file) return;
+  document.getElementById('ub4txt').innerHTML = '⏳ <strong>Reading…</strong>';
+  try {
+    cotFile = file.name;
+    cotText = file.name.toLowerCase().endsWith('.pdf') ? await parsePDF(file) : await parseDOCX(file);
+    const ub = document.getElementById('ub4');
+    ub.classList.add('ok');
+    document.getElementById('ub4txt').innerHTML = '✅ <strong>' + esc(file.name) + '</strong><br><small>Parsed OK</small>';
+    checkP2Ready();
+  } catch(err) {
+    document.getElementById('ub4txt').innerHTML = '<strong>Click to upload</strong> received COT<br><small>.docx or .pdf from Legals</small>';
+    alert('Error reading COT: ' + err.message);
+  }
+}
+
+async function parseDOCX(file) {
+  const ab  = await file.arrayBuffer();
+  const zip = await JSZip.loadAsync(ab);
+  const xml = await zip.file('word/document.xml').async('string');
+  return xml
+    .replace(/<w:br[^>]*\/>/g, '\n').replace(/<\/w:p>/g, '\n')
+    .replace(/<\/w:tr>/g, '\n').replace(/<\/w:tc>/g, '\t')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
+    .replace(/&#x201C;/g,'"').replace(/&#x201D;/g,'"').replace(/&#x2019;/g,"'").replace(/&#xA0;/g,' ')
+    .replace(/[ \t]+/g,' ').replace(/\n[ \t]+/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+
+async function parsePDF(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js not loaded');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const ab  = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: ab}).promise;
+  let out = '';
+  for (let pg = 1; pg <= pdf.numPages; pg++) {
+    const page    = await pdf.getPage(pg);
+    const content = await page.getTextContent();
+    const items   = content.items.slice().sort((a,b) => {
+      const dy = Math.round(b.transform[5]) - Math.round(a.transform[5]);
+      return dy !== 0 ? dy : a.transform[4] - b.transform[4];
+    });
+    let lastY = null, pageText = '';
+    for (const item of items) {
+      const y = Math.round(item.transform[5]);
+      if (lastY !== null && Math.abs(y - lastY) > 5) pageText += '\n';
+      pageText += item.str + ' ';
+      lastY = y;
+    }
+    out += pageText.trim() + '\n\n';
+  }
+  return out.replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n').trim();
+}
+
+function checkP2Ready() {
+  document.getElementById('p2verBtn').disabled = !(selProp && cotText);
+}
+
+// ═══════════════════════════════════════════════════
+// PHASE 1: GENERATE EMAIL
+// ═══════════════════════════════════════════════════
+function genEmail() {
+  const p = selProp; if (!p) return;
+  const cc = CC[p.la];
+  const cf = cc ? cc.full : p.la;
+  const ca = document.getElementById('p1cadr').value;
+  const gl = document.getElementById('p1gal').value;
+  const rv = parseFloat(p.rent) || 0;
+  const rf = rv ? '€' + rv.toLocaleString('en-IE', {minimumFractionDigits:2, maximumFractionDigits:2}) : '[Annual Rent]';
+  const ad = p.addr;
+  const sub = 'COT request- ' + ad;
+  const body =
+`Hi Jim ,
+
+Could you please issue the COT for the property above?
+
+Addressee : ${cf} , ${ca}
+Property Address: ${ad}
+Annual Rent: ${rf}
+Date for payment of Rent: ${gl}
+
+Kind Regards,
+Inga Berzonskyte`;
+
+  p1Email = 'SUBJECT: ' + sub + '\n\n' + body;
+
+  document.getElementById('p1ph').style.display  = 'none';
+  document.getElementById('p1out').style.display = 'block';
+  document.getElementById('p1out').innerHTML = `
+    <div class="orow">
+      <div class="otitle">Email Preview</div>
+      <div style="display:flex;gap:8px">
+        <button class="abtn" onclick="copyEmail()">📋 Copy email</button>
+      </div>
+    </div>
+    <div class="chips">
+      ${['Property address','Annual rent','Council auto-filled','Gale day auto-filled'].map(c=>`<span class="chip g">✓ ${c}</span>`).join('')}
+    </div>
+    <div class="ecard">
+      <div class="emeta">
+        <div class="emrow"><span class="emk">Subject</span><strong>${esc(sub)}</strong></div>
+      </div>
+      <div class="ebody">${esc(body)}</div>
+    </div>`;
+}
+
+function copyEmail() {
+  navigator.clipboard.writeText(p1Email).then(() => alert('Email copied to clipboard!'));
+}
+
+// ═══════════════════════════════════════════════════
+// PHASE 2: VERIFY
+// ═══════════════════════════════════════════════════
+function runVerify() {
+  const p = selProp; if (!p || !cotText) return;
+  const cc = CC[p.la];
+  const cf = cc ? cc.full : p.la;
+  const rv = parseFloat(p.rent) || 0;
+  const chks = [];
+
+  const nm   = s => String(s).toLowerCase().replace(/[\n\r]+/g,' ').replace(/[,.\u2019\u201c\u201d]/g,'').replace(/\s+/g,' ').trim();
+  const flat = cotText.replace(/\n/g,' ').replace(/\s+/g,' ');
+
+  const IH_VAR = /IH\s+MTR\s+VII\s+(DAC|Limited|Ltd\.?)/i;
+
+  // 1. Client name header
+  const clientOk  = IH_VAR.test(cotText);
+  const clientDAC = /IH\s+MTR\s+VII\s+DAC/i.test(cotText);
+  const clientRaw = (flat.match(/Our\s+client[:\s]+(.{5,80}?)(?:\s{2,}|Addressee)/i)||[])[1]||'(not found)';
+  chks.push({lbl:'Client name — header',st:!clientOk?'r':!clientDAC?'a':'g',exp:'IH MTR VII DAC (the "Lessor")',fnd:clientRaw.trim().substring(0,100),note:!clientOk?'Client name not found.':!clientDAC?'⚠ Found "IH MTR VII Limited" — should be "IH MTR VII DAC".':null});
+
+  // 2. Third Schedule
+  const th3  = cotText.match(/THIRD SCHEDULE[\s\S]*/i)?.[0]||'';
+  const th3f = th3.replace(/\n/g,' ').replace(/\s+/g,' ');
+  const llRaw= (th3f.match(/Landlord\s*[\/|]?\s*Lessor\s+(.{3,80}?)(?:\s{3,}|Tenant|$)/i)||[])[1]||'(not found)';
+  const llDAC= /IH\s+MTR\s+VII\s+DAC/i.test(llRaw);
+  const llVar= IH_VAR.test(llRaw);
+  chks.push({lbl:'Client name — Third Schedule',st:!llVar?'r':!llDAC?'a':'g',exp:'IH MTR VII DAC',fnd:llRaw.trim().substring(0,80),note:!llVar?'Not found in Third Schedule.':!llDAC?'⚠ Shows Limited — should be DAC.':null});
+
+  // 3. Addressee
+  const addRaw=(flat.match(/Addressee[:\s]+(.{10,250}?)(?:\s{3,}|Definitions|Background|1\.\s)/i)||[])[1]||'(not found)';
+  const expFull=cc?cf+' , '+cc.addr:cf;
+  const expEir =cc?cc.eir.replace(/\s/g,'').toLowerCase():'';
+  const ccOk=nm(addRaw).includes(nm(cf).substring(0,12));
+  const eirOk=expEir?nm(addRaw).replace(/\s/g,'').includes(expEir):true;
+  const stOk=cc?nm(addRaw).includes(nm(cc.addr.split(',')[0])):true;
+  chks.push({lbl:'Addressee — Council + Address',st:!ccOk?'r':(eirOk&&stOk)?'g':'a',exp:expFull,fnd:addRaw.substring(0,180),note:!ccOk?'Council name mismatch.':!eirOk?'⚠ Eircode ('+cc.eir+') not found.':!stOk?'⚠ Address differs from official list.':null});
+
+  // 4. Property address
+  const fs  = cotText.match(/FIRST SCHEDULE[\s\S]{0,800}/i)?.[0]||cotText;
+  const fsf = fs.replace(/\n/g,' ').replace(/\s+/g,' ');
+  const kaM = fsf.match(/known as\s+(.+?)\s+being the property/i);
+  const pfnd= kaM?kaM[1].trim():null;
+  const parts=p.addr.split(',').map(s=>s.trim()).filter(Boolean);
+  const mc  = parts.filter(pt=>nm(cotText).includes(nm(pt))).length;
+  const aOk = mc>=Math.max(1,parts.length-1);
+  chks.push({lbl:'Property address',st:aOk?'g':'r',exp:p.addr,fnd:pfnd?pfnd.substring(0,150):(aOk?'(found in COT)':'(not found)'),note:aOk?null:'Only '+mc+'/'+parts.length+' address parts matched.'});
+
+  // 5. Annual rent
+  let rst='g',rfnd='(not found)',rnote=null;
+  if (!rv){rst='a';rfnd='No rent';rnote='Check Funding Approval Letter.';}
+  else {
+    const pats=[/[\u20AC€]\s*([\d,]+(?:\.[\d]{2})?)/g,/([\d,]+(?:\.[\d]{2})?)\s*per\s*annum/gi];
+    let found=[];
+    for(const pat of pats){pat.lastIndex=0;let m;while((m=pat.exec(cotText))!==null){const n=parseFloat(m[1].replace(/,/g,''));if(n>500&&n<500000)found.push(n);}}
+    found=[...new Set(found)];
+    if(!found.length){rst='r';rfnd='(not found)';rnote='No rent in COT.';}
+    else{const hit=found.find(r=>Math.abs(r-rv)<1);rfnd=found.map(r=>'€'+r.toLocaleString('en-IE',{minimumFractionDigits:2})).join(', ');if(!hit){rst='r';rnote='COT rent ('+rfnd+') ≠ expected €'+rv.toLocaleString('en-IE',{minimumFractionDigits:2});}}
+  }
+  chks.push({lbl:'Annual rent',st:rst,exp:rv?'€'+rv.toLocaleString('en-IE',{minimumFractionDigits:2})+' pa':'Check FAL',fnd:rfnd,note:rnote});
+
+  // 6. Gale day
+  const expG=cc?cc.gale:'';
+  const glRaw=(flat.match(/Date\s+for\s+payment\s+of\s+Rent[\s:]+(.{3,80}?)(?:\s{3,}|$)/i)||[])[1]||'(not found)';
+  const ng=s=>s.toLowerCase().replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();
+  let gOk=false;
+  if(expG.toLowerCase()==='flexible'){gOk=ng(glRaw).includes('flexible');}
+  else{const ew=ng(expG).split(' ').filter(w=>w.length>2);const mw=ew.filter(w=>ng(glRaw).includes(w));gOk=ew.length>0&&(mw.length/ew.length)>=0.7;}
+  chks.push({lbl:'Date for payment of Rent',st:gOk?'g':'r',exp:expG||'Unknown',fnd:glRaw.substring(0,80),note:gOk?null:'Gale day mismatch.'});
+
+  // 7. Tenant/Lessee
+  const tenRaw=(th3f.match(/Tenant\s*[\/|]?\s*Lessee\s+(.{3,80}?)(?:\s{3,}|Rent|$)/i)||[])[1]||'(not found)';
+  const tenOk=nm(tenRaw).includes(nm(cf).substring(0,12));
+  chks.push({lbl:'Tenant/Lessee — Third Schedule',st:tenOk?'g':'r',exp:cf,fnd:tenRaw.substring(0,80),note:tenOk?null:'Tenant/Lessee mismatch.'});
+
+  // 8. Folio
+  const expF=(p.folio||'').trim();
+  if(expF){
+    const fInCot=nm(cotText).includes(nm(expF));
+    const fPats=[/comprised\s+in\s+([A-Z]{1,2}\d{3,7}[A-Z]?)\s+of\s+the\s+Register/i,/Folio\s+(?:No\.?\s*)?([A-Z]{1,2}\d{3,7}[A-Z]?)/i,new RegExp(expF.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i')];
+    let fDisp='(not found in COT)';
+    for(const pat of fPats){const m=fsf.match(pat);if(m){fDisp=(m[1]||m[0]).trim().substring(0,20);break;}}
+    if(fInCot&&fDisp==='(not found in COT)')fDisp=expF+' ✓';
+    chks.push({lbl:'Folio Number',st:fInCot?'g':'r',exp:expF,fnd:fDisp,note:fInCot?null:'Folio not found in COT.'});
+  } else {
+    chks.push({lbl:'Folio Number',st:'a',exp:'Not available',fnd:'Not in database',note:'Upload Property Tracker to verify.'});
+  }
+
+  // 9. Map
+  const fsec=cotText.match(/FIRST SCHEDULE[\s\S]{0,500}/i)?.[0]||'';
+  const mapM=/map/i.test(fsec);
+  const mapA=mapM&&/annex|annexed|attached/i.test(cotText.match(/FIRST SCHEDULE[\s\S]*/i)?.[0]||'');
+  chks.push({lbl:'Map — First Schedule',st:mapM?(mapA?'g':'a'):'b',exp:mapM?'Map should be annexed':'No map expected',fnd:mapM?(mapA?'Map appears annexed':'Map mentioned but not annexed'):'No map reference',note:mapM&&!mapA?'⚠ Map referenced but not annexed.':null});
+
+  // Render results
+  const pass=chks.filter(c=>c.st==='g').length;
+  const fail=chks.filter(c=>c.st==='r').length;
+  const warn=chks.filter(c=>c.st==='a').length;
+  const info=chks.filter(c=>c.st==='b').length;
+  const ovSt=fail>0?'fail':warn>0?'warn':'pass';
+  const ovIc=fail>0?'❌':warn>0?'⚠️':'✅';
+  const ovMs=fail>0?`${fail} issue(s) found — COT needs correction`:warn>0?'Passed with warnings':'All checks passed — COT is ready';
+
+  document.getElementById('p2ph').style.display  = 'none';
+  document.getElementById('p2out').style.display = 'block';
+  document.getElementById('p2out').innerHTML = `
+    <div class="orow">
+      <div class="otitle">Verification Report</div>
+      <button class="abtn green" onclick="dlReport()">⬇ Download Report (.xlsx)</button>
+    </div>
+    <div class="rbanner ${ovSt}"><div class="rico">${ovIc}</div><div><div class="rtit">${ovMs}</div><div class="rsub">${esc(cotFile)} · ${esc(p.id)} · ${esc(p.addr.substring(0,50))}</div></div></div>
+    <div class="spills">
+      <span class="sp g">✓ ${pass} passed</span>
+      ${fail?`<span class="sp r">✗ ${fail} failed</span>`:''}
+      ${warn?`<span class="sp a">⚠ ${warn} warning(s)</span>`:''}
+      ${info?`<span class="sp b">ℹ ${info} info</span>`:''}
+    </div>
+    <div id="cchks">${chks.map((c,i)=>renderChk(c,i)).join('')}</div>
+    <div style="margin-top:18px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#aaa;text-transform:uppercase;border-bottom:1px solid #eee;padding-bottom:5px;margin-bottom:8px;font-family:Arial,sans-serif">Extracted COT Text (preview)</div>
+      <div style="background:var(--paper);border:1px solid var(--border);border-radius:6px;padding:12px;font-family:'Courier New',monospace;font-size:11px;color:#888;max-height:140px;overflow-y:auto;white-space:pre-wrap">${esc(cotText.substring(0,1200))}${cotText.length>1200?'\n…(truncated)':''}</div>
+    </div>`;
+}
+
+function renderChk(c,i) {
+  const dc={g:'g',r:'r',a:'a',b:'b'}[c.st];
+  const bt={g:'PASS',r:'FAIL',a:'WARNING',b:'INFO'}[c.st];
+  const fc={g:'fnd',r:'bad',a:'wrn',b:'fnd'}[c.st];
+  return `<div class="ccard">
+    <div class="chead" onclick="togChk(${i})">
+      <div class="dot ${dc}"></div>
+      <div class="clbl">${esc(c.lbl)}</div>
+      <span class="cbadge ${dc}">${bt}</span>
+      <span class="chev" id="chv${i}">▼</span>
+    </div>
+    <div class="cbody" id="cb${i}">
+      <div class="crow"><div class="ck">Expected</div><div class="cv exp">${esc(c.exp)}</div></div>
+      <div class="crow"><div class="ck">Found</div><div class="cv ${fc}">${esc(c.fnd)}</div></div>
+      ${c.note?`<div class="cnote">${esc(c.note)}</div>`:''}
+    </div>
+  </div>`;
+}
+
+function togChk(i) {
+  document.getElementById('cb'+i).classList.toggle('open');
+  document.getElementById('chv'+i).classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════
+// DOWNLOAD REPORT (.xlsx)
+// ═══════════════════════════════════════════════════
+function dlReport() {
+  const p = selProp; if (!p) return;
+  const now = new Date().toLocaleDateString('en-IE',{day:'numeric',month:'long',year:'numeric'});
+  const cards = document.querySelectorAll('.ccard');
+  const stMap = {PASS:'pass',FAIL:'fail',WARNING:'warn',INFO:'info'};
+  let pass=0,fail=0,warn=0,info=0;
+  const rows = [];
+  cards.forEach((card,i) => {
+    const lbl  = card.querySelector('.clbl')?.textContent?.trim()||'';
+    const bt   = card.querySelector('.cbadge')?.textContent?.trim()||'';
+    const vals = card.querySelectorAll('.cv');
+    const exp  = vals[0]?.textContent?.trim()||'';
+    const fnd  = vals[1]?.textContent?.trim()||'';
+    const note = card.querySelector('.cnote')?.textContent?.trim()||'';
+    const sk   = stMap[bt]||'info';
+    if(sk==='pass')pass++;else if(sk==='fail')fail++;else if(sk==='warn')warn++;else info++;
+    rows.push([i+1,lbl,bt,exp,fnd,note]);
+  });
+  const wb  = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet([
+    ['COT VERIFICATION REPORT'],[''],
+    ['IH ID',p.id],['Property',p.addr],['COT File',cotFile],['Generated',now],[''],
+    ['Overall',fail>0?fail+' issue(s) found':'Passed'],[''],
+    ['Passed',pass],['Failed',fail],['Warnings',warn],['Info',info]
+  ]);
+  ws1['!cols']=[{wch:18},{wch:60}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Summary');
+  const ws2=XLSX.utils.aoa_to_sheet([['#','Check','Status','Expected','Found in COT','Notes'],...rows]);
+  ws2['!cols']=[{wch:4},{wch:30},{wch:10},{wch:40},{wch:40},{wch:50}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Verification Checks');
+  XLSX.writeFile(wb,'COT_Verification_'+p.id+'_'+p.addr.replace(/[^a-zA-Z0-9]/g,'_').substring(0,30)+'.xlsx');
+}
+
+// ═══════════════════════════════════════════════════
+// PHASE 3: GENERATE LIR
+// ═══════════════════════════════════════════════════
+async function genLIR() {
+  const p = selProp; if (!p) return;
+  const bor = p.res || '—';
+  const adr = p.addr;
+  const eir = p.eir || '';
+  const fol = p.folio || '';
+
+  // Reset download button
+  const dlBtn = window.document.getElementById('p3dlBtn');
+  dlBtn.style.display = 'none';
+  dlBtn.textContent   = '⬇ Download .docx';
+
+  document.getElementById('p3ph').style.display  = 'none';
+  document.getElementById('p3out').style.display = 'block';
+  document.getElementById('pv3bor').textContent = bor;
+  document.getElementById('pv3adr').textContent = adr;
+  document.getElementById('pv3eir').textContent = eir;
+  document.getElementById('pv3fol').textContent = fol || '(not available)';
+  document.getElementById('pv3dat').textContent = '—';
+
+  runLIRQC(adr, fol);
+  await genLIRDocx(bor, adr, eir, fol);
+}
+
+function runLIRQC(adr, fol) {
+  const qcEl = document.getElementById('p3qc');
+  if (!cotText) { qcEl.style.display = 'none'; return; }
+  qcEl.style.display = 'block';
+  const nm = s => String(s).toLowerCase().replace(/[,.\s]+/g,' ').trim();
+  const checks = [];
+  const parts  = adr.split(',').map(s=>s.trim()).filter(Boolean);
+  const mc     = parts.filter(pt=>nm(cotText).includes(nm(pt))).length;
+  const aOk    = mc>=Math.max(1,parts.length-1);
+  checks.push({lbl:'Property address matches COT',ok:aOk,fnd:aOk?'Matched in COT ✓':'Not fully matched — verify manually'});
+  if(fol){const fOk=nm(cotText).includes(nm(fol));checks.push({lbl:'Folio number matches COT',ok:fOk,fnd:fOk?'Found in COT ✓':'Not found — verify manually'});}
+  else{checks.push({lbl:'Folio number',ok:false,fnd:'Not in database'});}
+  document.getElementById('p3qcItems').innerHTML = checks.map(c =>
+    `<div class="qc-item ${c.ok?'ok':'fail'}">
+      <div class="qc-ico">${c.ok?'✅':'❌'}</div>
+      <div><div class="qc-lbl">${esc(c.lbl)}</div><div class="qc-val">${esc(c.fnd)}</div></div>
+    </div>`).join('');
+}
+
+async function genLIRDocx(bor, adr, eir, fol) {
+  try {
+    // Build docx from scratch using JSZip — no docx.js dependency needed
+    const rows = [
+      ["Name of Lessor:", "IH MTR VII LTD acting through its general partner Manustin Holdings LTD trading as Irish Homes"],
+      ["Address of Lessor:", "FDW House, Blackthorn Business Park, Coes Road, Dundalk, Louth"],
+      ["Contact Name for the Lessor including email address:", "Ann Cowan\naccounts@irishhomes.ie"],
+      ["Lessor\u2019s Solicitor\u2019s name and address:", "Grainne Loughnane\nKane Tuohy LLP\nHambledon House\n19-26 Pembroke Street Lower\nDublin 2"],
+      ["Lessor\u2019s Surveyor\u2019s name and address:", "Anthony Gannon\nPremier Irish Homes\nUnit 35, Orion Business Park\nBallycoolin, Dublin 15, D15 KP74"],
+      ["Borrower(s) Name:", bor],
+      ["Property address:", adr],
+      ["Eircode:", eir || ""],
+      ["Folio No:", fol || ""],
+      ["Draft Certificate of Title included: (Required)", "Yes"],
+      ["Lease Term:", "25 Years"],
+      ["Target Date:", ""],
+    ];
+
+    // XML-escape helper
+    const xe = s => String(s||"")
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+
+    // Convert a string with \n into multiple <w:r><w:t> runs separated by <w:br/>
+    const makeRuns = (text, bold=false) => {
+      const parts = String(text||"").split("\n");
+      return parts.map((p, i) =>
+        `<w:r>${bold?'<w:rPr><w:b/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>':'<w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>'}` +
+        `<w:t xml:space="preserve">${xe(p)}</w:t></w:r>` +
+        (i < parts.length - 1 ? '<w:r><w:br/></w:r>' : '')
+      ).join("");
+    };
+
+    // Build table rows XML
+    const tableRowsXml = rows.map(([label, value]) => `
+      <w:tr>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="4000" w:type="dxa"/>
+            <w:tcBorders>
+              <w:top w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+              <w:left w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+              <w:bottom w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+              <w:right w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+            </w:tcBorders>
+            <w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/>
+          </w:tcPr>
+          <w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>${makeRuns(label, true)}</w:p>
+        </w:tc>
+        <w:tc>
+          <w:tcPr>
+            <w:tcW w:w="5606" w:type="dxa"/>
+            <w:tcBorders>
+              <w:top w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+              <w:left w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+              <w:bottom w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+              <w:right w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+            </w:tcBorders>
+          </w:tcPr>
+          <w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>${makeRuns(value)}</w:p>
+        </w:tc>
+      </w:tr>`).join("");
+
+    const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+  xmlns:v="urn:schemas-microsoft-com:vml"
+  xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"
+  xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+  xmlns:w10="urn:schemas-microsoft-com:office:word"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+  xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
+  xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk"
+  xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml"
+  xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+  mc:Ignorable="w14 wp14">
+<w:body>
+  <!-- Title -->
+  <w:p>
+    <w:pPr>
+      <w:jc w:val="center"/>
+      <w:spacing w:before="0" w:after="240"/>
+    </w:pPr>
+    <w:r>
+      <w:rPr><w:b/><w:u w:val="single"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>
+      <w:t>Information Required for the Pre-population of the AFL and Lease</w:t>
+    </w:r>
+  </w:p>
+  <!-- Table -->
+  <w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="9606" w:type="dxa"/>
+      <w:tblBorders>
+        <w:insideH w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+        <w:insideV w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+      </w:tblBorders>
+      <w:tblLayout w:type="fixed"/>
+    </w:tblPr>
+    <w:tblGrid>
+      <w:gridCol w:w="4000"/>
+      <w:gridCol w:w="5606"/>
+    </w:tblGrid>
+    <!-- Header row -->
+    <w:tr>
+      <w:tc>
+        <w:tcPr>
+          <w:tcW w:w="9606" w:type="dxa"/>
+          <w:gridSpan w:val="2"/>
+          <w:tcBorders>
+            <w:top w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+            <w:left w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+            <w:bottom w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+            <w:right w:val="single" w:sz="6" w:space="0" w:color="000000"/>
+          </w:tcBorders>
+          <w:shd w:val="solid" w:color="8EAADB" w:fill="8EAADB"/>
+        </w:tcPr>
+        <w:p>
+          <w:pPr><w:spacing w:before="80" w:after="80"/></w:pPr>
+          <w:r><w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr><w:t>Lessor</w:t></w:r>
+        </w:p>
+      </w:tc>
+    </w:tr>
+    ${tableRowsXml}
+  </w:tbl>
+  <w:sectPr>
+    <w:pgSz w:w="11906" w:h="16838"/>
+    <w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/>
+  </w:sectPr>
+</w:body>
+</w:document>`;
+
+    const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+
+    const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+    const wordRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`;
+
+    const zip = new JSZip();
+    zip.file("[Content_Types].xml", contentTypes);
+    zip.file("_rels/.rels", rels);
+    zip.file("word/document.xml", documentXml);
+    zip.file("word/_rels/document.xml.rels", wordRels);
+
+    const buf  = await zip.generateAsync({ type: "arraybuffer", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const firstPart = adr.split(",")[0].trim();
+    const filename = "2. HA Lease Information Requirements " + firstPart + ".docx";
+
+    const url   = URL.createObjectURL(blob);
+    const dlBtn = window.document.getElementById("p3dlBtn");
+    dlBtn.href     = url;
+    dlBtn.download = filename;
+    dlBtn.style.display = "inline-flex";
+    dlBtn.textContent   = "\u2B07\uFE0F  Download " + filename;
+
+  } catch(err) { alert("Error generating LIR: " + err.message); console.error(err); }
+}
+
+function ex(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+function dlBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
