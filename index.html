@@ -1253,7 +1253,6 @@ Kind Regards,
 Inga Berzonskyte`;
 
   p1Email = 'SUBJECT: ' + sub + '\n\n' + body;
-  const gmailUrl = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(sub) + '&body=' + encodeURIComponent(body);
 
   document.getElementById('p1ph').style.display  = 'none';
   document.getElementById('p1out').style.display = 'block';
@@ -1262,7 +1261,6 @@ Inga Berzonskyte`;
       <div class="otitle">Email Preview</div>
       <div style="display:flex;gap:8px">
         <button class="abtn" onclick="copyEmail()">📋 Copy email</button>
-        <button class="abtn" onclick="window.open('${gmailUrl}','_blank')">✉️ Open in Gmail</button>
       </div>
     </div>
     <div class="chips">
