@@ -61,7 +61,7 @@ function runLIRQC(adr, fol) {
 async function genLIRDocx(bor, adr, eir, fol) {
   try {
     const rows = [
-      ["Name of Lessor:",                                            "IH MTR VII LTD acting through its general partner Manustin Holdings LTD trading as Irish Homes"],
+      ["Name of Lessor:",                                            "IH MTR VII DAC acting through its general partner Manustin Holdings LTD trading as Irish Homes"],
       ["Address of Lessor:",                                         "FDW House, Blackthorn Business Park, Coes Road, Dundalk, Louth"],
       ["Contact Name for the Lessor including email address:",       "Ann Cowan\naccounts@irishhomes.ie"],
       ["Lessor’s Solicitor’s name and address:",          "Grainne Loughnane\nKane Tuohy LLP\nHambledon House\n19-26 Pembroke Street Lower\nDublin 2"],
