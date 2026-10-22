@@ -177,9 +177,27 @@ function runVerify() {
     const rest = flat.substr(glM.index + glM[0].length);
     glRaw = rest.length > glWin ? rest.substr(0, glWin).replace(/\s+\S*$/, '') + '…' : rest.trim();
   }
-  // For display, prefer just the line the gale day sits on (the window above
-  // can run into the next clause)
-  const glLine = ((cotText.match(/Date\s+for\s+payment\s+of\s+Rent[ \t:]*([^\n]*)/i) || [])[1] || '').trim();
+  // For display, show the whole gale day as written in the COT, which may wrap
+  // over several lines. Stop at the next table label or schedule heading, then
+  // end after the expected gale day's last word (or, failing that, the furthest
+  // expected word) so the following clause isn't shown.
+  let glShow = '';
+  if (glM) {
+    let seg = flat.substr(glM.index + glM[0].length, glWin + 120);
+    const stop = seg.search(/\s(?:Landlord\s*\/|Tenant\s*\/|Term\s+Commencement|[A-Z]+\s+SCHEDULE\b|IN\s+WITNESS|SIGNED\b)/i);
+    if (stop >= 0) seg = seg.substring(0, stop);
+    const low   = seg.toLowerCase();
+    const words = expG.toLowerCase().match(/[a-z0-9]{4,}/g) || [];
+    const endOf = w => { const k = low.lastIndexOf(w); return k < 0 ? -1 : k + w.length; };
+    let cut = words.length ? endOf(words[words.length - 1]) : -1;
+    if (cut < 0) cut = Math.max(-1, ...words.map(endOf));
+    if (cut > 0) {
+      while (cut < seg.length && /[)\].,;]/.test(seg[cut])) cut++;
+      glShow = seg.substring(0, cut).trim();
+    } else {
+      glShow = seg.length > 120 ? seg.substring(0, 120).replace(/\s+\S*$/, '') + '…' : seg.trim();
+    }
+  }
   const ng    = s => s.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
   let gOk = false;
   if (expG.toLowerCase() === 'flexible') {
@@ -193,7 +211,7 @@ function runVerify() {
     lbl: 'Date for payment of Rent',
     st:  gOk ? 'g' : 'r',
     exp: expG || 'Unknown',
-    fnd: glLine.length >= 3 ? glLine : glRaw,
+    fnd: glShow || glRaw,
     note: gOk ? null : 'Gale day mismatch.'
   });
 
