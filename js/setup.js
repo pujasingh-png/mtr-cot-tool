@@ -18,7 +18,7 @@ function loadExcel(input) {
 async function loadFromSharePoint(evt) {
   if (evt) evt.stopPropagation();
   if (!spConfigured()) {
-    alert('SharePoint is not set up yet — add the Client ID and Tenant ID in js/config.js (see DEPLOY.md).');
+    alert('SharePoint is not set up yet. Add the Client ID and Tenant ID in js/config.js (see DEPLOY.md).');
     return;
   }
   let url = spFileUrl();
@@ -26,7 +26,7 @@ async function loadFromSharePoint(evt) {
 
   const btn = document.getElementById('spBtn');
   btn.disabled = true;
-  btn.textContent = '⏳ Loading from SharePoint…';
+  btn.innerHTML = icon('loader', 'spin') + ' Loading from SharePoint…';
   try {
     const f = await spDownload(url);
     loadWorkbook(f.data, f.name);
@@ -37,7 +37,7 @@ async function loadFromSharePoint(evt) {
     alert('Could not load from SharePoint: ' + err.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '☁ Load from SharePoint';
+    btn.innerHTML = icon('cloud') + ' Load from SharePoint';
   }
 }
 
@@ -84,9 +84,9 @@ function loadWorkbook(data, fileName) {
   const ub = document.getElementById('ubSetup');
   ub.classList.add('ok');
   document.getElementById('ubSetupTxt').innerHTML =
-    '✅ <strong>' + esc(fileName) + '</strong><br><small>' + list.length + ' properties loaded</small>';
+    icon('checkCircle') + ' <strong>' + esc(fileName) + '</strong><br><small>' + list.length + (list.length === 1 ? ' property' : ' properties') + ' loaded</small>';
   document.getElementById('stepNum1').classList.add('done');
-  document.getElementById('stepNum1').textContent = '✓';
+  document.getElementById('stepNum1').innerHTML = icon('check');
 
   // Show property selector
   document.getElementById('setupSelectPlaceholder').style.display = 'none';
@@ -117,7 +117,7 @@ function renderSetupList(list) {
   el.innerHTML = list.map(p => {
     const isSel = selProp && selProp.id === p.id;
     return `<div class="pi${isSel ? ' sel' : ''}" onclick="selectProperty('${esc(p.id)}')">
-      <div class="pn">${esc(p.id)} — ${esc(p.res || 'Unknown')}</div>
+      <div class="pn">${esc(p.id)} · ${esc(p.res || 'Unknown')}</div>
       <div class="pa">${esc(p.addr)}</div>
     </div>`;
   }).join('');
@@ -135,7 +135,7 @@ function selectProperty(id) {
 
   // Mark step 2 done
   document.getElementById('stepNum2').classList.add('done');
-  document.getElementById('stepNum2').textContent = '✓';
+  document.getElementById('stepNum2').innerHTML = icon('check');
 
   showPropertyCard(selProp);
   populateAllPhases(selProp);
@@ -155,15 +155,15 @@ function showPropertyCard(p) {
   const rv = parseFloat(p.rent) || 0;
   const rs = rv ? '€' + rv.toLocaleString('en-IE', {minimumFractionDigits: 2}) : 'Not in database';
 
-  document.getElementById('pscTitle').textContent = p.id + ' — ' + (p.res || 'Unknown Resident');
+  document.getElementById('pscTitle').textContent = p.id + ' · ' + (p.res || 'Unknown Resident');
   document.getElementById('pscSub').textContent   = p.addr;
   document.getElementById('pscGrid').innerHTML = `
     <div class="psc-field"><div class="psc-label">Address</div><div class="psc-value">${esc(p.addr)}</div></div>
     <div class="psc-field"><div class="psc-label">Annual Rent</div><div class="psc-value">${esc(rs)}</div></div>
-    <div class="psc-field"><div class="psc-label">Eircode</div><div class="psc-value">${esc(p.eir || '—')}</div></div>
+    <div class="psc-field"><div class="psc-label">Eircode</div><div class="psc-value">${esc(p.eir || 'Not recorded')}</div></div>
     <div class="psc-field"><div class="psc-label">County Council</div><div class="psc-value">${esc(cc ? cc.full : p.la)}</div></div>
-    <div class="psc-field"><div class="psc-label">Gale Day</div><div class="psc-value">${esc(cc ? cc.gale : '—')}</div></div>
-    <div class="psc-field"><div class="psc-label">Folio No.</div><div class="psc-value">${esc(p.folio || '—')}</div></div>
+    <div class="psc-field"><div class="psc-label">Gale Day</div><div class="psc-value">${esc(cc ? cc.gale : 'Not recorded')}</div></div>
+    <div class="psc-field"><div class="psc-label">Folio No.</div><div class="psc-value">${esc(p.folio || 'Not recorded')}</div></div>
   `;
   document.getElementById('propCard').classList.add('visible');
 }
@@ -187,10 +187,10 @@ function populateAllPhases(p) {
   const rs = rv ? '€' + rv.toLocaleString('en-IE', {minimumFractionDigits: 2}) : 'Not in database';
 
   // Phase 1
-  document.getElementById('p1bor').value          = p.res || '—';
+  document.getElementById('p1bor').value          = p.res || 'Not recorded';
   document.getElementById('p1adr').value          = p.addr;
   document.getElementById('p1rnt').value          = rs;
-  document.getElementById('p1rntH').textContent   = rv ? '' : '⚠ Not in database — check Funding Approval Letter';
+  document.getElementById('p1rntH').textContent   = rv ? '' : 'Not in database. Check the Funding Approval Letter.';
   document.getElementById('p1cou').value          = cc ? cc.full : p.la;
   document.getElementById('p1cadr').value         = cc ? cc.addr : '';
   document.getElementById('p1gal').value          = cc ? cc.gale : '';
@@ -207,7 +207,7 @@ function populateAllPhases(p) {
   document.getElementById('apsP2Addr').textContent = p.addr.substring(0, 55);
 
   // Phase 3
-  document.getElementById('p3bor').value          = p.res || '—';
+  document.getElementById('p3bor').value          = p.res || 'Not recorded';
   document.getElementById('p3adr').value          = p.addr;
   document.getElementById('p3eir').value          = p.eir || '';
   document.getElementById('p3fol').value          = p.folio || '(not in database)';

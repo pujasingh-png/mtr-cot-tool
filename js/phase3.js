@@ -4,7 +4,7 @@
 
 async function genLIR() {
   const p = selProp; if (!p) return;
-  const bor = p.res   || '—';
+  const bor = p.res   || '';
   const adr = p.addr;
   const eir = p.eir   || '';
   const fol = p.folio || '';
@@ -12,7 +12,7 @@ async function genLIR() {
   // Reset download button
   const dlBtn = document.getElementById('p3dlBtn');
   dlBtn.style.display = 'none';
-  dlBtn.textContent   = '⬇ Download .docx';
+  dlBtn.innerHTML     = icon('download') + ' Download .docx';
 
   document.getElementById('p3ph').style.display  = 'none';
   document.getElementById('p3out').style.display = 'block';
@@ -20,7 +20,7 @@ async function genLIR() {
   document.getElementById('pv3adr').textContent  = adr;
   document.getElementById('pv3eir').textContent  = eir;
   document.getElementById('pv3fol').textContent  = fol || '(not available)';
-  document.getElementById('pv3dat').textContent  = '—';
+  document.getElementById('pv3dat').textContent  = '';
 
   runLIRQC(adr, fol);
   await genLIRDocx(bor, adr, eir, fol);
@@ -41,17 +41,17 @@ function runLIRQC(adr, fol) {
   checks.push({
     lbl: 'Property address matches COT',
     ok:  aOk,
-    fnd: aOk ? 'Matched in COT ✓' : 'Not fully matched — verify manually'
+    fnd: aOk ? 'Matched in COT' : 'Not fully matched. Please verify manually.'
   });
   if (fol) {
     const fOk = nm(cotText).includes(nm(fol));
-    checks.push({lbl: 'Folio number matches COT', ok: fOk, fnd: fOk ? 'Found in COT ✓' : 'Not found — verify manually'});
+    checks.push({lbl: 'Folio number matches COT', ok: fOk, fnd: fOk ? 'Found in COT' : 'Not found. Please verify manually.'});
   } else {
     checks.push({lbl: 'Folio number', ok: false, fnd: 'Not in database'});
   }
   document.getElementById('p3qcItems').innerHTML = checks.map(c =>
     `<div class="qc-item ${c.ok ? 'ok' : 'fail'}">
-      <div class="qc-ico">${c.ok ? '✅' : '❌'}</div>
+      <div class="qc-ico">${c.ok ? icon('checkCircle') : icon('xCircle')}</div>
       <div><div class="qc-lbl">${esc(c.lbl)}</div><div class="qc-val">${esc(c.fnd)}</div></div>
     </div>`).join('');
 }
@@ -227,7 +227,7 @@ async function genLIRDocx(bor, adr, eir, fol) {
     dlBtn.href             = url;
     dlBtn.download         = filename;
     dlBtn.style.display    = "inline-flex";
-    dlBtn.textContent      = "⬇️  Download " + filename;
+    dlBtn.innerHTML        = icon("download") + " Download " + esc(filename);
 
   } catch(err) {
     alert("Error generating LIR: " + err.message);

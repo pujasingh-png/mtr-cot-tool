@@ -72,7 +72,7 @@ function saveCouncilEmail() {
 
 function updateCouncilEmailHint(la, em) {
   const h = document.getElementById('p4couEmailHint');
-  if (h) h.textContent = em ? '' : "Not on file — enter it once and it's remembered for this council next time.";
+  if (h) h.textContent = em ? '' : "Not on file. Enter it once and it will be remembered for this council.";
 }
 
 // ── Date helpers ──
@@ -92,7 +92,7 @@ function addDays(dateStr, n) {
 }
 
 function fmtDate(dateStr) {
-  if (!dateStr) return '—';
+  if (!dateStr) return 'Not set';
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-IE', {day: 'numeric', month: 'long', year: 'numeric'});
 }
 
@@ -139,13 +139,13 @@ function renderIssueDateField(p, st) {
   const wrap = document.getElementById('p4IssueDateWrap');
   if (p.cotIssued) {
     wrap.innerHTML = `
-      <div style="background:var(--amber-lt);border:1px solid var(--amber-bdr);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:11px;color:#7a4f00;font-weight:600;font-family:Arial,sans-serif">✏️ Auto-filled from database</div>
+      <div style="background:var(--amber-lt);border:1px solid var(--amber-bdr);border-radius:6px;padding:9px 12px;margin-bottom:10px;font-size:11px;color:#7a4f00;font-weight:600;font-family:Arial,sans-serif">${icon('pencil')} Auto-filled from database</div>
       <div class="fld"><input class="af" value="${esc(fmtDate(p.cotIssued))}" readonly></div>`;
   } else {
     wrap.innerHTML = `
       <div class="fld">
         <input type="date" id="p4IssueDateManual" value="${esc(st.issueDate || '')}" onchange="setIssueDate()">
-        <div class="hint">Not in the database — enter the date manually to start chasing.</div>
+        <div class="hint">Not in the database. Enter the date manually to start chasing.</div>
       </div>`;
   }
 }
@@ -171,23 +171,23 @@ function setIssueDate() {
 
 function renderStageBanner(p, st) {
   if (st.stage === 'COMPLETE') {
-    return `<div class="rbanner pass"><div class="rico">✅</div><div><div class="rtit">Lease signed &amp; returned — chase complete</div><div class="rsub">${esc(p.id)} · ${esc(p.addr.substring(0, 50))}</div></div></div>`;
+    return `<div class="rbanner pass"><div class="rico">${icon('checkCircle')}</div><div><div class="rtit">Lease signed &amp; returned. Chase complete.</div><div class="rsub">${esc(p.id)} · ${esc(p.addr.substring(0, 50))}</div></div></div>`;
   }
   const label = st.stage === 'AWAITING_COUNCIL' ? 'Awaiting County Council confirmation' : 'Awaiting Housing Agency confirmation';
-  const due   = st.nextReminder ? fmtDate(st.nextReminder) + (st.nextReminderLabel ? ' — ' + st.nextReminderLabel : '') : '—';
-  return `<div class="rbanner warn"><div class="rico">⏳</div><div><div class="rtit">${esc(label)}</div><div class="rsub">Next check-in: ${esc(due)} · Issued ${esc(fmtDate(st.issueDate))}</div></div></div>`;
+  const due   = st.nextReminder ? fmtDate(st.nextReminder) + (st.nextReminderLabel ? ', ' + st.nextReminderLabel : '') : 'Not set';
+  return `<div class="rbanner warn"><div class="rico">${icon('clock')}</div><div><div class="rtit">${esc(label)}</div><div class="rsub">Next check-in: ${esc(due)} · Issued ${esc(fmtDate(st.issueDate))}</div></div></div>`;
 }
 
 function renderStageActions(p, st) {
   if (st.stage === 'COMPLETE') {
-    return `<div style="margin:16px 0"><button class="abtn" onclick="resetChase()">↺ Start a new chase for this property</button></div>`;
+    return `<div style="margin:16px 0"><button class="abtn" onclick="resetChase()">${icon('reset')} Start a new chase for this property</button></div>`;
   }
 
   if (st.stage === 'AWAITING_HA') {
     return `
       <div style="margin:16px 0">
         <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-blue" style="width:auto;padding:9px 16px" onclick="genHAFollowup()">✉️ Generate HA Follow-Up Email</button>
+          <button class="btn btn-blue" style="width:auto;padding:9px 16px" onclick="genHAFollowup()">${icon('mail')} Generate HA Follow-Up Email</button>
         </div>
         <div id="p4email"></div>
       </div>`;
@@ -198,13 +198,13 @@ function renderStageActions(p, st) {
   return `
     <div style="margin:16px 0">
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-blue" style="width:auto;padding:9px 16px" onclick="genCouncilFollowup()" ${em ? '' : 'disabled'}>✉️ Generate Council Follow-Up Email</button>
+        <button class="btn btn-blue" style="width:auto;padding:9px 16px" onclick="genCouncilFollowup()" ${em ? '' : 'disabled'}>${icon('mail')} Generate Council Follow-Up Email</button>
       </div>
       ${em ? '' : '<div class="hint" style="margin-top:6px">Enter the council\'s leasing/housing email on the left to enable this.</div>'}
       <div id="p4email"></div>
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-        <button class="abtn green" onclick="markCouncilConfirmed()">✅ Lease signed &amp; returned</button>
-        <button class="abtn" onclick="markCouncilNotYet()">⏳ Not yet — recheck in 2 weeks</button>
+        <button class="abtn green" onclick="markCouncilConfirmed()">${icon('checkCircle')} Lease signed &amp; returned</button>
+        <button class="abtn" onclick="markCouncilNotYet()">${icon('clock')} Not yet, recheck in 2 weeks</button>
       </div>
     </div>`;
 }
@@ -235,7 +235,7 @@ function markHAStillDrafting() {
   const st = loadChase(p.id);
   st.nextReminder      = addDays(todayStr(), 7);
   st.nextReminderLabel = 'HA follow-up due';
-  st.log.push({date: todayStr(), text: 'Housing Agency still drafting the lease — recheck in 7 days.'});
+  st.log.push({date: todayStr(), text: 'Housing Agency still drafting the lease. Recheck in 7 days.'});
   saveChase(p.id, st);
   renderPhase4(p);
 }
@@ -256,7 +256,7 @@ function markCouncilNotYet() {
   const st = loadChase(p.id);
   st.nextReminder      = addDays(todayStr(), 14);
   st.nextReminderLabel = 'Council follow-up due';
-  st.log.push({date: todayStr(), text: 'Lease not yet signed & returned — recheck in 2 weeks.'});
+  st.log.push({date: todayStr(), text: 'Lease not yet signed & returned. Recheck in 2 weeks.'});
   saveChase(p.id, st);
   renderPhase4(p);
 }
@@ -278,8 +278,8 @@ function insertEmailCard(sub, body, to) {
       <div class="ebody">${esc(body)}</div>
     </div>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="abtn" onclick="copyP4Email()">📋 Copy email</button>
-      <button class="abtn" onclick="window.open('${gmailUrl}','_blank')">✉️ Open in Gmail</button>
+      <button class="abtn" onclick="copyP4Email()">${icon('copy')} Copy email</button>
+      <button class="abtn" onclick="window.open('${gmailUrl}','_blank')">${icon('mail')} Open in Gmail</button>
     </div>`;
 }
 
@@ -294,7 +294,7 @@ function genHAFollowup() {
   saveChase(p.id, st);
   renderPhase4(p);
 
-  const sub  = 'COT/Lease status check — ' + p.addr;
+  const sub  = 'COT/Lease Status Check: ' + p.addr;
   const body =
 `Hi,
 
@@ -318,7 +318,7 @@ function genCouncilFollowup() {
   saveChase(p.id, st);
   renderPhase4(p);
 
-  const sub  = 'Lease signing status — ' + p.addr;
+  const sub  = 'Lease Signing Status: ' + p.addr;
   const body =
 `Hi,
 

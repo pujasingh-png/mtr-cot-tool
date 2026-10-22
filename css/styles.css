@@ -549,3 +549,18 @@ body {
 .tl-item:last-child { border-bottom: none; }
 .tl-date { color: #999; font-family: 'Courier New', monospace; font-size: 11px; white-space: nowrap; min-width: 82px; padding-top: 1px; }
 .tl-text { color: #444; line-height: 1.5; }
+
+/* ── Icons ── */
+.ic { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.14em; flex-shrink: 0; }
+.ic.spin { animation: ic-spin 0.9s linear infinite; }
+@keyframes ic-spin { to { transform: rotate(360deg); } }
+.ph-icon { color: #c3ccd8; line-height: 1; }
+.rbanner.pass .rico { color: var(--green); }
+.rbanner.warn .rico { color: #b7791f; }
+.rbanner.fail .rico { color: #c0392b; }
+.qc-item.ok .qc-ico { color: var(--green); }
+.qc-item.fail .qc-ico { color: #c0392b; }
+.psc-check, .upbox.ok .ico { color: var(--green); }
+.upbox .ico { color: var(--blue); }
+.gate-icon { color: #8a96a8; }
+.step-num .ic { font-size: 13px; vertical-align: -0.2em; }

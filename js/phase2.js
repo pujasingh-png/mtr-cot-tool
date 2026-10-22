@@ -6,7 +6,7 @@
 
 async function loadCOT(input) {
   const file = input.files[0]; if (!file) return;
-  document.getElementById('ub4txt').innerHTML = '⏳ <strong>Reading…</strong>';
+  document.getElementById('ub4txt').innerHTML = icon('loader', 'spin') + ' <strong>Reading…</strong>';
   try {
     cotFile = file.name;
     cotText = file.name.toLowerCase().endsWith('.pdf')
@@ -15,7 +15,7 @@ async function loadCOT(input) {
     const ub = document.getElementById('ub4');
     ub.classList.add('ok');
     document.getElementById('ub4txt').innerHTML =
-      '✅ <strong>' + esc(file.name) + '</strong><br><small>Parsed OK</small>';
+      icon('checkCircle') + ' <strong>' + esc(file.name) + '</strong><br><small>Parsed OK</small>';
     checkP2Ready();
   } catch(err) {
     document.getElementById('ub4txt').innerHTML =
@@ -80,11 +80,11 @@ function runVerify() {
   const clientDAC = /IH\s+MTR\s+VII\s+DAC/i.test(cotText);
   const clientRaw = (flat.match(/Our\s+client[:\s]+(.{5,80}?)(?:\s{2,}|Addressee)/i) || [])[1] || '(not found)';
   chks.push({
-    lbl: 'Client name — header',
+    lbl: 'Client name (header)',
     st:  !clientOk ? 'r' : !clientDAC ? 'a' : 'g',
     exp: 'IH MTR VII DAC (the "Lessor")',
     fnd: clientRaw.trim().substring(0, 100),
-    note: !clientOk ? 'Client name not found.' : !clientDAC ? '⚠ Found "IH MTR VII Limited" — should be "IH MTR VII DAC".' : null
+    note: !clientOk ? 'Client name not found.' : !clientDAC ? 'Found "IH MTR VII Limited". This should read "IH MTR VII DAC".' : null
   });
 
   // 2. Client name — Third Schedule
@@ -94,11 +94,11 @@ function runVerify() {
   const llDAC = /IH\s+MTR\s+VII\s+DAC/i.test(llRaw);
   const llVar = IH_VAR.test(llRaw);
   chks.push({
-    lbl: 'Client name — Third Schedule',
+    lbl: 'Client name (Third Schedule)',
     st:  !llVar ? 'r' : !llDAC ? 'a' : 'g',
     exp: 'IH MTR VII DAC',
     fnd: llRaw.trim().substring(0, 80),
-    note: !llVar ? 'Not found in Third Schedule.' : !llDAC ? '⚠ Shows Limited — should be DAC.' : null
+    note: !llVar ? 'Not found in Third Schedule.' : !llDAC ? 'Shows "Limited". This should read "DAC".' : null
   });
 
   // 3. Addressee — Council + Address
@@ -109,11 +109,11 @@ function runVerify() {
   const eirOk   = expEir ? nm(addRaw).replace(/\s/g, '').includes(expEir) : true;
   const stOk    = cc ? nm(addRaw).includes(nm(cc.addr.split(',')[0])) : true;
   chks.push({
-    lbl: 'Addressee — Council + Address',
+    lbl: 'Addressee (Council and address)',
     st:  !ccOk ? 'r' : (eirOk && stOk) ? 'g' : 'a',
     exp: expFull,
     fnd: addRaw.substring(0, 180),
-    note: !ccOk ? 'Council name mismatch.' : !eirOk ? '⚠ Eircode (' + cc.eir + ') not found.' : !stOk ? '⚠ Address differs from official list.' : null
+    note: !ccOk ? 'Council name mismatch.' : !eirOk ? 'Eircode (' + cc.eir + ') not found.' : !stOk ? 'Address differs from the official council list.' : null
   });
 
   // 4. Property address
@@ -155,7 +155,7 @@ function runVerify() {
       rfnd = found.map(r => '€' + r.toLocaleString('en-IE', {minimumFractionDigits: 2})).join(', ');
       if (!hit) {
         rst = 'r';
-        rnote = 'COT rent (' + rfnd + ') ≠ expected €' + rv.toLocaleString('en-IE', {minimumFractionDigits: 2});
+        rnote = 'COT rent (' + rfnd + ') does not match the expected €' + rv.toLocaleString('en-IE', {minimumFractionDigits: 2});
       }
     }
   }
@@ -191,7 +191,7 @@ function runVerify() {
   const tenRaw = (th3f.match(/Tenant\s*[\/|]?\s*Lessee\s+(.{3,80}?)(?:\s{3,}|Rent|$)/i) || [])[1] || '(not found)';
   const tenOk  = nm(tenRaw).includes(nm(cf).substring(0, 12));
   chks.push({
-    lbl: 'Tenant/Lessee — Third Schedule',
+    lbl: 'Tenant/Lessee (Third Schedule)',
     st:  tenOk ? 'g' : 'r',
     exp: cf,
     fnd: tenRaw.substring(0, 80),
@@ -212,7 +212,7 @@ function runVerify() {
       const m = fsf.match(pat);
       if (m) { fDisp = (m[1] || m[0]).trim().substring(0, 20); break; }
     }
-    if (fInCot && fDisp === '(not found in COT)') fDisp = expF + ' ✓';
+    if (fInCot && fDisp === '(not found in COT)') fDisp = expF;
     chks.push({
       lbl: 'Folio Number',
       st:  fInCot ? 'g' : 'r',
@@ -229,11 +229,11 @@ function runVerify() {
   const mapM = /map/i.test(fsec);
   const mapA = mapM && /annex|annexed|attached/i.test(cotText.match(/FIRST SCHEDULE[\s\S]*/i)?.[0] || '');
   chks.push({
-    lbl: 'Map — First Schedule',
+    lbl: 'Map (First Schedule)',
     st:  mapM ? (mapA ? 'g' : 'a') : 'b',
     exp: mapM ? 'Map should be annexed' : 'No map expected',
     fnd: mapM ? (mapA ? 'Map appears annexed' : 'Map mentioned but not annexed') : 'No map reference',
-    note: mapM && !mapA ? '⚠ Map referenced but not annexed.' : null
+    note: mapM && !mapA ? 'Map is referenced but not annexed.' : null
   });
 
   // ── Render results ──
@@ -242,24 +242,24 @@ function runVerify() {
   const warn = chks.filter(c => c.st === 'a').length;
   const info = chks.filter(c => c.st === 'b').length;
   const ovSt = fail > 0 ? 'fail' : warn > 0 ? 'warn' : 'pass';
-  const ovIc = fail > 0 ? '❌' : warn > 0 ? '⚠️' : '✅';
+  const ovIc = fail > 0 ? icon('xCircle') : warn > 0 ? icon('alert') : icon('checkCircle');
   const ovMs = fail > 0
-    ? `${fail} issue(s) found — COT needs correction`
-    : warn > 0 ? 'Passed with warnings' : 'All checks passed — COT is ready';
+    ? `COT needs correction: ${fail} issue${fail === 1 ? '' : 's'} found`
+    : warn > 0 ? 'Passed with warnings' : 'All checks passed. COT is ready.';
 
   document.getElementById('p2ph').style.display  = 'none';
   document.getElementById('p2out').style.display = 'block';
   document.getElementById('p2out').innerHTML = `
     <div class="orow">
       <div class="otitle">Verification Report</div>
-      <button class="abtn green" onclick="dlReport()">⬇ Download Report (.xlsx)</button>
+      <button class="abtn green" onclick="dlReport()">${icon('download')} Download Report (.xlsx)</button>
     </div>
     <div class="rbanner ${ovSt}"><div class="rico">${ovIc}</div><div><div class="rtit">${ovMs}</div><div class="rsub">${esc(cotFile)} · ${esc(p.id)} · ${esc(p.addr.substring(0, 50))}</div></div></div>
     <div class="spills">
-      <span class="sp g">✓ ${pass} passed</span>
-      ${fail ? `<span class="sp r">✗ ${fail} failed</span>` : ''}
-      ${warn ? `<span class="sp a">⚠ ${warn} warning(s)</span>` : ''}
-      ${info ? `<span class="sp b">ℹ ${info} info</span>` : ''}
+      <span class="sp g">${icon('check')} ${pass} passed</span>
+      ${fail ? `<span class="sp r">${icon('xCircle')} ${fail} failed</span>` : ''}
+      ${warn ? `<span class="sp a">${icon('alert')} ${warn} warning${warn === 1 ? '' : 's'}</span>` : ''}
+      ${info ? `<span class="sp b">${icon('info')} ${info} info</span>` : ''}
     </div>
     <div id="cchks">${chks.map((c, i) => renderChk(c, i)).join('')}</div>
     <div style="margin-top:18px">
@@ -277,7 +277,7 @@ function renderChk(c, i) {
       <div class="dot ${dc}"></div>
       <div class="clbl">${esc(c.lbl)}</div>
       <span class="cbadge ${dc}">${bt}</span>
-      <span class="chev" id="chv${i}">▼</span>
+      <span class="chev" id="chv${i}">${icon('chevron')}</span>
     </div>
     <div class="cbody" id="cb${i}">
       <div class="crow"><div class="ck">Expected</div><div class="cv exp">${esc(c.exp)}</div></div>

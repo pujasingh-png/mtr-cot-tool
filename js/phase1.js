@@ -13,7 +13,7 @@ function genEmail() {
     ? '€' + rv.toLocaleString('en-IE', {minimumFractionDigits: 2, maximumFractionDigits: 2})
     : '[Annual Rent]';
   const ad  = p.addr;
-  const sub = 'COT request- ' + ad;
+  const sub = 'COT Request: ' + ad;
 
   const body =
 `Hi Jim ,
@@ -42,13 +42,13 @@ Inga Berzonskyte`;
     <div class="orow">
       <div class="otitle">Email Preview</div>
       <div style="display:flex;gap:8px">
-        <button class="abtn" onclick="copyEmail()">📋 Copy email</button>
-        <button class="abtn" onclick="window.open('${gmailUrl}','_blank')">✉️ Open in Gmail</button>
+        <button class="abtn" onclick="copyEmail()">${icon('copy')} Copy email</button>
+        <button class="abtn" onclick="window.open('${gmailUrl}','_blank')">${icon('mail')} Open in Gmail</button>
       </div>
     </div>
     <div class="chips">
       ${['Property address', 'Annual rent', 'Council auto-filled', 'Gale day auto-filled']
-        .map(c => `<span class="chip g">✓ ${c}</span>`).join('')}
+        .map(c => `<span class="chip g">${icon('check')} ${c}</span>`).join('')}
     </div>
     <div class="ecard">
       <div class="emeta">

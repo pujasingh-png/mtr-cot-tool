@@ -69,7 +69,7 @@ function renderChaseQueue(activeId, prefix) {
 
   const badge = rows.length
     ? `<span class="sp r">${rows.length} ${isOverdueView ? 'due now' : 'in range'}</span>`
-    : `<span class="sp g">✓ None ${isOverdueView ? 'overdue' : 'in range'}</span>`;
+    : `<span class="sp g">${icon('check')} None ${isOverdueView ? 'overdue' : 'in range'}</span>`;
 
   const picker = `
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:4px 0 16px">
@@ -91,8 +91,8 @@ function renderChaseQueue(activeId, prefix) {
     const bg    = p.id === activeId ? ' style="background:var(--paper)"' : '';
     return `<div class="tl-item"${bg}>
       <div class="tl-date">${esc(when)}</div>
-      <div class="tl-text" style="flex:1"><strong>${esc(p.id)}</strong> — ${esc(p.addr)}<br><span style="color:#999">${esc(label)} due ${esc(fmtDate(st.nextReminder))}</span></div>
-      <button class="abtn" onclick="openChaseFor('${esc(p.id)}')">Open →</button>
+      <div class="tl-text" style="flex:1"><strong>${esc(p.id)}</strong> · ${esc(p.addr)}<br><span style="color:#999">${esc(label)} due ${esc(fmtDate(st.nextReminder))}</span></div>
+      <button class="abtn" onclick="openChaseFor('${esc(p.id)}')">Open ${icon('arrowR')}</button>
     </div>`;
   }).join('');
 

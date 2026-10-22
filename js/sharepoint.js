@@ -80,7 +80,7 @@ async function spDownload(url) {
 }
 
 async function spError(res) {
-  if (res.status === 404) return 'File not found — check the SharePoint link.';
+  if (res.status === 404) return 'File not found. Check the SharePoint link.';
   if (res.status === 403) return 'You do not have access to this file in SharePoint.';
   try {
     const j = await res.json();
