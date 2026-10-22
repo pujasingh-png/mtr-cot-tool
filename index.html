@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.27.0/lib/msal-browser.min.js"></script>
 
 <!-- App styles -->
 <link rel="stylesheet" href="css/styles.css">
@@ -49,6 +50,14 @@
     <span class="tab-num">PHASE 3</span> LIR &amp; Submit
     <span class="lock-icon" id="lockP3">🔒</span>
   </div>
+  <div class="tab tab-phase tab-p4 locked" id="tabP4" onclick="tryTab('p4')">
+    <span class="tab-num">PHASE 4</span> Lease Chasing
+    <span class="lock-icon" id="lockP4">🔒</span>
+  </div>
+  <div class="tab tab-phase tab-p5 locked" id="tabP5" onclick="tryTab('p5')">
+    <span class="tab-num">PHASE 5</span> Chase Queue
+    <span class="lock-icon" id="lockP5">🔒</span>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════
@@ -76,6 +85,9 @@
             <p id="ubSetupTxt"><strong>Click to upload</strong> MTR Excel<br><small style="opacity:0.7">MTR_Data_Live.xlsx</small></p>
           </div>
           <input type="file" id="fSetup" accept=".xlsx,.xls" style="display:none" onchange="loadExcel(this)">
+          <div class="sp-or">or</div>
+          <button class="sp-btn" id="spBtn" onclick="loadFromSharePoint(event)">☁ Load from SharePoint</button>
+          <div class="sp-status"><span id="spStatus"></span> <a href="#" onclick="promptSharePointUrl(event);return false">Change file link</a></div>
           <div id="setupStep2Hint" style="display:none;margin-top:12px;font-size:11px;color:var(--green);font-family:Arial,sans-serif;text-align:center">
             ✓ Database loaded — now select a property below →
           </div>
@@ -333,13 +345,113 @@
 
 </div>
 
-<!-- App scripts — load order matters: data → utils → setup → phases -->
+<!-- ══════════════════════════════════
+     PHASE 4 PANEL — Lease Chasing
+══════════════════════════════════ -->
+<div class="panel" id="panelP4">
+
+  <div class="gate-overlay" id="gateP4" style="display:none">
+    <div class="gate-icon">🔒</div>
+    <div class="gate-title">No property selected</div>
+    <div class="gate-sub">Please complete the Setup step first — upload your database and select a property.</div>
+    <button class="gate-btn" onclick="goSetup()">← Go to Setup</button>
+  </div>
+
+  <div class="phase-layout" id="contentP4" style="display:none">
+    <div class="phase-left">
+
+      <div class="active-prop-strip">
+        <div class="aps-left">
+          <div class="aps-dot"></div>
+          <div>
+            <div class="aps-id" id="apsP4Id"></div>
+            <div class="aps-addr" id="apsP4Addr"></div>
+          </div>
+        </div>
+        <div class="aps-change" onclick="goSetup()">Change ↩</div>
+      </div>
+
+      <div>
+        <div class="slabel">Draft COT Issue Date</div>
+        <div id="p4IssueDateWrap"></div>
+      </div>
+
+      <div>
+        <div class="slabel">Follow-Up Contacts</div>
+        <div class="fld"><div class="lbl">Housing Agency</div><input class="af" id="p4haEmail" readonly></div>
+        <div class="fld"><div class="lbl">County Council</div><input class="af" id="p4couName" readonly></div>
+        <div class="fld">
+          <div class="lbl">Council Leasing/Housing Email</div>
+          <input id="p4couEmail" placeholder="e.g. housing@example.ie" onchange="saveCouncilEmail()">
+          <div class="hint" id="p4couEmailHint"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:auto;padding-top:6px">
+        <div class="aps-change" style="text-align:center" onclick="resetChase()">↺ Reset chase tracking for this property</div>
+      </div>
+
+    </div>
+    <div class="phase-right">
+      <div id="p4out"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════
+     PHASE 5 PANEL — Chase Queue
+══════════════════════════════════ -->
+<div class="panel" id="panelP5">
+
+  <div class="gate-overlay" id="gateP5" style="display:none">
+    <div class="gate-icon">🔒</div>
+    <div class="gate-title">No property selected</div>
+    <div class="gate-sub">Please complete the Setup step first — upload your database and select a property.</div>
+    <button class="gate-btn" onclick="goSetup()">← Go to Setup</button>
+  </div>
+
+  <div class="phase-layout" id="contentP5" style="display:none">
+    <div class="phase-left">
+
+      <div class="active-prop-strip">
+        <div class="aps-left">
+          <div class="aps-dot"></div>
+          <div>
+            <div class="aps-id" id="apsP5Id"></div>
+            <div class="aps-addr" id="apsP5Addr"></div>
+          </div>
+        </div>
+        <div class="aps-change" onclick="goSetup()">Change ↩</div>
+      </div>
+
+      <div>
+        <div class="slabel">About</div>
+        <p style="font-size:12px;color:#666;line-height:1.6;font-family:Arial,sans-serif">
+          Scans every property in the uploaded database and lists the ones that have crossed their follow-up window, based on each property's Draft COT Issue Date.
+          Open a property to draft its follow-up email in Phase 4.
+        </p>
+      </div>
+
+    </div>
+    <div class="phase-right">
+      <div id="p5out"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- App scripts — load order matters: config → data → utils → sharepoint → setup → phases -->
+<script src="js/config.js"></script>
 <script src="js/data.js"></script>
 <script src="js/utils.js"></script>
+<script src="js/sharepoint.js"></script>
 <script src="js/setup.js"></script>
 <script src="js/phase1.js"></script>
 <script src="js/phase2.js"></script>
 <script src="js/phase3.js"></script>
+<script src="js/phase4.js"></script>
+<script src="js/phase5.js"></script>
 
 </body>
 </html>

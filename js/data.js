@@ -36,8 +36,19 @@ const CC = {
   "Wicklow CC":         {full:"Wicklow County Council",                 addr:"Social Development (Housing & Community), Wicklow County Council, Station Road, Wicklow Town, A67 FW96", eir:"A67 FW96", gale:"On a monthly or Quarterly basis"},
 };
 
+// ── Housing Agency contact (Phase 4 — Lease Chasing) ──
+const HA_EMAIL = "mtr@housingagency.ie";
+
+// ── County Council Lease/Housing department emails (Phase 4 — Lease Chasing) ──
+// Filled in as they become known. Missing entries can be added per-property in
+// Phase 4 — they're saved to this browser for next time (see js/phase4.js).
+const CC_LEASE_EMAIL = {
+  "Galway CC": "housing@galwaycoco.ie",
+  "DC-DCC":    "leasing@dublincity.ie",
+};
+
 // ── Excel column index map ──
-const COL = {ID:0, ADDR:1, EIR:2, LA:3, FOLIO:4, RES:5, RES2:6, RENT:7};
+const COL = {ID:0, ADDR:1, EIR:2, LA:3, FOLIO:4, RES:5, RES2:6, RENT:7, COT_ISSUED:8};
 
 // ── Shared application state ──
 let allProps = [];   // full property list loaded from Excel

@@ -113,9 +113,13 @@ body {
 .tab-p1 .tab-num { background: var(--ink); }
 .tab-p2 .tab-num { background: var(--red); }
 .tab-p3 .tab-num { background: var(--green); }
+.tab-p4 .tab-num { background: var(--blue); }
+.tab-p5 .tab-num { background: var(--amber); }
 .tab-p1.on { border-bottom-color: var(--ink); }
 .tab-p2.on { border-bottom-color: var(--red); }
 .tab-p3.on { border-bottom-color: var(--green); }
+.tab-p4.on { border-bottom-color: var(--blue); }
+.tab-p5.on { border-bottom-color: var(--amber); }
 
 /* locked phase tabs */
 .tab-phase.locked { opacity: 0.45; cursor: not-allowed; }
@@ -217,6 +221,12 @@ body {
 .upbox .ico { font-size: 28px; margin-bottom: 8px; }
 .upbox p { font-size: 12px; color: #777; line-height: 1.5; font-family: Arial, sans-serif; }
 .upbox strong { color: var(--blue); }
+.sp-or { text-align: center; font-size: 11px; color: #aaa; margin: 8px 0; font-family: Arial, sans-serif; }
+.sp-btn { display: block; width: 100%; padding: 9px; background: #fff; color: var(--blue); border: 1px solid var(--blue); border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: Arial, sans-serif; }
+.sp-btn:hover { background: #eef3fb; }
+.sp-btn:disabled { opacity: 0.6; cursor: wait; }
+.sp-status { margin-top: 6px; font-size: 10px; color: #999; text-align: center; font-family: Arial, sans-serif; }
+.sp-status a { color: var(--blue); }
 
 /* ── SEARCH ── */
 .srch-wrap { margin-top: 14px; }
@@ -429,6 +439,8 @@ body {
 .btn-red:not(:disabled):hover { background: #a33a24; }
 .btn-green { background: var(--green); color: #fff; }
 .btn-green:not(:disabled):hover { background: #145530; }
+.btn-blue { background: var(--blue); color: #fff; }
+.btn-blue:not(:disabled):hover { background: var(--blue-dk); }
 
 /* ── EMAIL CARD ── */
 .ecard { background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
@@ -528,3 +540,12 @@ body {
 .qc-item.ok .qc-lbl { color: var(--green); }
 .qc-item.fail .qc-lbl { color: #8b1a1a; }
 .qc-item .qc-val { color: #666; margin-top: 1px; font-size: 11px; }
+.qc-item.pending { background: var(--amber-lt); border: 1px solid var(--amber-bdr); }
+.qc-item.pending .qc-lbl { color: #7a4f00; }
+
+/* ── CHASE TIMELINE (Phase 4) ── */
+.tl { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 4px 16px; }
+.tl-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0ece4; font-size: 12px; font-family: Arial, sans-serif; }
+.tl-item:last-child { border-bottom: none; }
+.tl-date { color: #999; font-family: 'Courier New', monospace; font-size: 11px; white-space: nowrap; min-width: 82px; padding-top: 1px; }
+.tl-text { color: #444; line-height: 1.5; }

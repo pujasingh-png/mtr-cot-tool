@@ -7,52 +7,92 @@ function loadExcel(input) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const wb   = XLSX.read(e.target.result, {type: 'array'});
-      const ws   = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header: 1, defval: ''});
-
-      // Find the header row (contains 'IH ID')
-      let hi = -1;
-      for (let i = 0; i < Math.min(10, rows.length); i++) {
-        if (String(rows[i][COL.ID]).includes('IH ID')) { hi = i; break; }
-      }
-      const ds = hi >= 0 ? hi + 1 : 3;
-
-      const list = [];
-      for (let i = ds; i < rows.length; i++) {
-        const r        = rows[i];
-        const id       = String(r[COL.ID]   || '').trim();
-        const addr     = String(r[COL.ADDR] || '').trim();
-        const la       = String(r[COL.LA]   || '').trim();
-        const res1     = String(r[COL.RES]  || '').trim();
-        const res2     = String(r[COL.RES2] || '').trim();
-        const res2clean = /^n\/?a$/i.test(res2) ? '' : res2;
-        const res      = res2clean ? res1 + ', ' + res2clean : res1;
-        const eir      = String(r[COL.EIR]  || '').trim();
-        const rent     = r[COL.RENT];
-        const folio    = String(r[COL.FOLIO] || '').trim();
-        if (!id || !addr || id === 'IH ID') continue;
-        list.push({id, addr, la, res, eir, rent, folio});
-      }
-      allProps = list;
-
-      // Mark upload box as done
-      const ub = document.getElementById('ubSetup');
-      ub.classList.add('ok');
-      document.getElementById('ubSetupTxt').innerHTML =
-        '✅ <strong>' + esc(file.name) + '</strong><br><small>' + list.length + ' properties loaded</small>';
-      document.getElementById('stepNum1').classList.add('done');
-      document.getElementById('stepNum1').textContent = '✓';
-
-      // Show property selector
-      document.getElementById('setupSelectPlaceholder').style.display = 'none';
-      document.getElementById('setupSelectWrap').style.display        = 'block';
-      document.getElementById('setupStep2Hint').style.display         = 'block';
-      renderSetupList(allProps);
-
+      loadWorkbook(e.target.result, file.name);
     } catch(err) { alert('Error reading Excel: ' + err.message); }
   };
   reader.readAsArrayBuffer(file);
+}
+
+// ── Load directly from SharePoint ──
+
+async function loadFromSharePoint(evt) {
+  if (evt) evt.stopPropagation();
+  if (!spConfigured()) {
+    alert('SharePoint is not set up yet — add the Client ID and Tenant ID in js/config.js (see DEPLOY.md).');
+    return;
+  }
+  let url = spFileUrl();
+  if (!url) { url = promptSharePointUrl(); if (!url) return; }
+
+  const btn = document.getElementById('spBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Loading from SharePoint…';
+  try {
+    const f = await spDownload(url);
+    loadWorkbook(f.data, f.name);
+    const when = f.modified ? new Date(f.modified).toLocaleString('en-IE') : '';
+    document.getElementById('spStatus').textContent =
+      'Signed in as ' + spAccountName() + (when ? ' · file last updated ' + when : '');
+  } catch(err) {
+    alert('Could not load from SharePoint: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '☁ Load from SharePoint';
+  }
+}
+
+function promptSharePointUrl(evt) {
+  if (evt) evt.stopPropagation();
+  const url = prompt('Paste the SharePoint link to the MTR database (.xlsx).\nLeave blank to use the default.', spFileUrl());
+  if (url === null) return '';
+  spSetFileUrl(url.trim());
+  return spFileUrl();
+}
+
+function loadWorkbook(data, fileName) {
+  const wb   = XLSX.read(data, {type: 'array', cellDates: true});
+  const ws   = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, {header: 1, defval: ''});
+
+  // Find the header row (contains 'IH ID')
+  let hi = -1;
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    if (String(rows[i][COL.ID]).includes('IH ID')) { hi = i; break; }
+  }
+  const ds = hi >= 0 ? hi + 1 : 3;
+
+  const list = [];
+  for (let i = ds; i < rows.length; i++) {
+    const r        = rows[i];
+    const id       = String(r[COL.ID]   || '').trim();
+    const addr     = String(r[COL.ADDR] || '').trim();
+    const la       = String(r[COL.LA]   || '').trim();
+    const res1     = String(r[COL.RES]  || '').trim();
+    const res2     = String(r[COL.RES2] || '').trim();
+    const res2clean = /^n\/?a$/i.test(res2) ? '' : res2;
+    const res      = res2clean ? res1 + ', ' + res2clean : res1;
+    const eir      = String(r[COL.EIR]  || '').trim();
+    const rent     = r[COL.RENT];
+    const folio    = String(r[COL.FOLIO] || '').trim();
+    const cotIssued = excelDateToISO(r[COL.COT_ISSUED]);
+    if (!id || !addr || id === 'IH ID') continue;
+    list.push({id, addr, la, res, eir, rent, folio, cotIssued});
+  }
+  allProps = list;
+
+  // Mark upload box as done
+  const ub = document.getElementById('ubSetup');
+  ub.classList.add('ok');
+  document.getElementById('ubSetupTxt').innerHTML =
+    '✅ <strong>' + esc(fileName) + '</strong><br><small>' + list.length + ' properties loaded</small>';
+  document.getElementById('stepNum1').classList.add('done');
+  document.getElementById('stepNum1').textContent = '✓';
+
+  // Show property selector
+  document.getElementById('setupSelectPlaceholder').style.display = 'none';
+  document.getElementById('setupSelectWrap').style.display        = 'block';
+  document.getElementById('setupStep2Hint').style.display         = 'block';
+  renderSetupList(allProps);
 }
 
 // ── Property list filtering & rendering ──
@@ -173,6 +213,9 @@ function populateAllPhases(p) {
   document.getElementById('p3fol').value          = p.folio || '(not in database)';
   document.getElementById('apsP3Id').textContent  = p.id;
   document.getElementById('apsP3Addr').textContent = p.addr.substring(0, 55);
+
+  // Phase 4
+  renderPhase4(p);
 
   checkP2Ready();
 }
