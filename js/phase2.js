@@ -169,7 +169,19 @@ function runVerify() {
 
   // 6. Gale day
   const expG  = cc ? cc.gale : '';
-  const glRaw = (flat.match(/Date\s+for\s+payment\s+of\s+Rent[\s:]+(.{3,80}?)(?:\s{3,}|$)/i) || [])[1] || '(not found)';
+  // Take a window after the label sized to the expected gale day (plus slack),
+  // so long ones like Dublin City Council's fit. `flat` has no line breaks or
+  // runs of spaces left, so the window can't rely on a gap to find its end.
+  const glM   = flat.match(/Date\s+for\s+payment\s+of\s+Rent[\s:]*/i);
+  const glWin = Math.max(80, expG.length + 40);
+  let glRaw   = '(not found)';
+  if (glM) {
+    const rest = flat.substr(glM.index + glM[0].length);
+    glRaw = rest.length > glWin ? rest.substr(0, glWin).replace(/\s+\S*$/, '') + '…' : rest.trim();
+  }
+  // For display, prefer just the line the gale day sits on (the window above
+  // can run into the next clause)
+  const glLine = ((cotText.match(/Date\s+for\s+payment\s+of\s+Rent[ \t:]*([^\n]*)/i) || [])[1] || '').trim();
   const ng    = s => s.toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
   let gOk = false;
   if (expG.toLowerCase() === 'flexible') {
@@ -183,7 +195,7 @@ function runVerify() {
     lbl: 'Date for payment of Rent',
     st:  gOk ? 'g' : 'r',
     exp: expG || 'Unknown',
-    fnd: glRaw.substring(0, 80),
+    fnd: glLine.length >= 3 ? glLine : glRaw,
     note: gOk ? null : 'Gale day mismatch.'
   });
 
