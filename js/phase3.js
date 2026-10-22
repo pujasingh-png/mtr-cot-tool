@@ -35,14 +35,13 @@ function runLIRQC(adr, fol) {
 
   const nm     = s => String(s).toLowerCase().replace(/[,.\s]+/g, ' ').trim();
   const checks = [];
-  const flat   = cotText.replace(/\s+/g, ' ');
-  const kaM    = flat.match(/known as\s+(.+?)\s+being the property/i);
-  const am     = matchAddress(adr, cotText, kaM ? kaM[1] : '');
+  const cotAdr = findCotAddress(adr, cotText);
+  const am     = matchAddress(adr, cotText, cotAdr);
   const aOk    = am.missing.length === 0;
   checks.push({
     lbl: 'Property address matches COT',
     ok:  aOk,
-    fnd: aOk ? 'Matched in COT' : describeAddressGaps(am.missing)
+    fnd: (cotAdr ? 'COT: ' + cotAdr + '. ' : '') + (aOk ? 'Exact match.' : describeAddressGaps(am.missing))
   });
   if (fol) {
     const fOk = nm(cotText).includes(nm(fol));

@@ -61,6 +61,37 @@ function matchAddress(addr, text, near) {
   return {parts, missing};
 }
 
+// Pull the property address as written in the COT. Prefers the First Schedule
+// wording ("known as … being the property"); otherwise finds where the first
+// address part appears and takes the text through the furthest later part
+// (usually the Eircode) within the next 250 characters.
+function findCotAddress(addr, text) {
+  const flat = String(text || '').replace(/\s+/g, ' ');
+  const ka   = flat.match(/known as\s+(.+?)\s+being the property/i);
+  if (ka) return ka[1].trim();
+
+  const low   = flat.toLowerCase();
+  const parts = String(addr || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  for (let i = 0; i < parts.length; i++) {
+    let start = low.indexOf(parts[i]);
+    if (start < 0) continue;
+    let end = start + parts[i].length;
+    // Earlier parts weren't found as written (e.g. misspelt) — step back far
+    // enough to include them, then snap to the start of a word
+    if (i > 0) {
+      const back = parts.slice(0, i).reduce((n, pt) => n + pt.length + 2, 0);
+      start = Math.max(0, start - back);
+      while (start > 0 && flat[start - 1] !== ' ') start--;
+    }
+    for (let j = i + 1; j < parts.length; j++) {
+      const k = low.indexOf(parts[j], end);
+      if (k >= 0 && k - start < 250) end = k + parts[j].length;
+    }
+    return flat.substring(start, end).trim();
+  }
+  return '';
+}
+
 // Plain-English summary of the parts that differ
 function describeAddressGaps(missing) {
   return missing.map(m => m.cot

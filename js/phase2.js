@@ -119,15 +119,14 @@ function runVerify() {
   // 4. Property address — every part must match; the First Schedule wording
   // ("known as … being the property") is searched across the whole COT since
   // "First Schedule" is also mentioned earlier in the body text
-  const kaM  = flat.match(/known as\s+(.+?)\s+being the property/i);
-  const pfnd = kaM ? kaM[1].trim() : null;
+  const pfnd = findCotAddress(p.addr, cotText);
   const am   = matchAddress(p.addr, cotText, pfnd);
   const aOk  = am.missing.length === 0;
   chks.push({
     lbl: 'Property address',
     st:  aOk ? 'g' : 'r',
     exp: p.addr,
-    fnd: pfnd ? pfnd.substring(0, 200) : (aOk ? 'All parts found in the COT' : '(not found)'),
+    fnd: pfnd || '(address not found in COT)',
     note: aOk ? null : describeAddressGaps(am.missing)
   });
 
