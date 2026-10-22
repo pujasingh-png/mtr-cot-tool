@@ -208,6 +208,20 @@ function runVerify() {
     note: tenOk ? null : 'Tenant/Lessee mismatch.'
   });
 
+  // 7b. Term Commencement Date — must be left blank in the COT. Use the last
+  // occurrence (the Third Schedule table); the value runs up to the next
+  // table label. Underscores, dots or brackets alone still count as blank.
+  const tcAll = [...flat.matchAll(/Term\s+Commencement\s+Date[\s:]*(.*?)(?=\s*(?:Date\s+for\s+payment|Landlord|Tenant|Rent\b|Lease\s+Term|[A-Z]+\s+SCHEDULE|$))/gi)];
+  const tcRaw = tcAll.length ? tcAll[tcAll.length - 1][1].trim().substring(0, 100) : null;
+  const tcSet = tcRaw !== null && /[A-Za-z0-9]/.test(tcRaw);
+  chks.push({
+    lbl: 'Term Commencement Date (Third Schedule)',
+    st:  tcRaw === null ? 'b' : tcSet ? 'a' : 'g',
+    exp: 'Blank',
+    fnd: tcRaw === null ? '(not found in COT)' : tcSet ? tcRaw : '(blank)',
+    note: tcSet ? 'Term Commencement Date should be left blank. Ask Legals to remove "' + tcRaw + '".' : null
+  });
+
   // 8. Folio number
   const expF = (p.folio || '').trim();
   if (expF) {
