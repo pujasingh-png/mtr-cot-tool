@@ -116,20 +116,19 @@ function runVerify() {
     note: !ccOk ? 'Council name mismatch.' : !eirOk ? 'Eircode (' + cc.eir + ') not found.' : !stOk ? 'Address differs from the official council list.' : null
   });
 
-  // 4. Property address
-  const fs   = cotText.match(/FIRST SCHEDULE[\s\S]{0,800}/i)?.[0] || cotText;
-  const fsf  = fs.replace(/\n/g, ' ').replace(/\s+/g, ' ');
-  const kaM  = fsf.match(/known as\s+(.+?)\s+being the property/i);
+  // 4. Property address — every part must match; the First Schedule wording
+  // ("known as … being the property") is searched across the whole COT since
+  // "First Schedule" is also mentioned earlier in the body text
+  const kaM  = flat.match(/known as\s+(.+?)\s+being the property/i);
   const pfnd = kaM ? kaM[1].trim() : null;
-  const parts = p.addr.split(',').map(s => s.trim()).filter(Boolean);
-  const mc   = parts.filter(pt => nm(cotText).includes(nm(pt))).length;
-  const aOk  = mc >= Math.max(1, parts.length - 1);
+  const am   = matchAddress(p.addr, cotText, pfnd);
+  const aOk  = am.missing.length === 0;
   chks.push({
     lbl: 'Property address',
     st:  aOk ? 'g' : 'r',
     exp: p.addr,
-    fnd: pfnd ? pfnd.substring(0, 150) : (aOk ? '(found in COT)' : '(not found)'),
-    note: aOk ? null : 'Only ' + mc + '/' + parts.length + ' address parts matched.'
+    fnd: pfnd ? pfnd.substring(0, 200) : (aOk ? 'All parts found in the COT' : '(not found)'),
+    note: aOk ? null : describeAddressGaps(am.missing)
   });
 
   // 5. Annual rent
@@ -221,7 +220,7 @@ function runVerify() {
     ];
     let fDisp = '(not found in COT)';
     for (const pat of fPats) {
-      const m = fsf.match(pat);
+      const m = flat.match(pat);
       if (m) { fDisp = (m[1] || m[0]).trim().substring(0, 20); break; }
     }
     if (fInCot && fDisp === '(not found in COT)') fDisp = expF;

@@ -25,6 +25,50 @@ function excelDateToISO(v) {
 }
 
 // ═══════════════════════════════════════════════════
+// ADDRESS MATCHING — database address vs COT text
+// ═══════════════════════════════════════════════════
+
+const addrNorm = s => String(s || '').toLowerCase().replace(/[,.’'‘“”"()]/g, ' ').replace(/\s+/g, ' ').trim();
+
+function editDistance(a, b) {
+  const d = Array.from({length: a.length + 1}, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+  }
+  return d[a.length][b.length];
+}
+
+// Every comma-separated part of the address must appear in the COT text.
+// For each part that doesn't, look in `near` (the COT's own address text, if
+// found) for a close spelling — up to 2 letters different — to show the user.
+function matchAddress(addr, text, near) {
+  const hay   = addrNorm(text);
+  const parts = String(addr || '').split(',').map(s => s.trim()).filter(Boolean);
+  const words = String(near || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  const missing = parts.filter(pt => !hay.includes(addrNorm(pt))).map(pt => {
+    const want = addrNorm(pt), n = want.split(' ').length;
+    let best = null, bd = Math.min(2, Math.floor(want.length / 4));
+    for (let i = 0; i + n <= words.length; i++) {
+      const cand = words.slice(i, i + n).join(' ').replace(/[,.;:]+$/, '');
+      const dist = editDistance(want, addrNorm(cand));
+      if (dist > 0 && dist <= bd) { bd = dist; best = cand; }
+    }
+    return {part: pt, cot: best};
+  });
+  return {parts, missing};
+}
+
+// Plain-English summary of the parts that differ
+function describeAddressGaps(missing) {
+  return missing.map(m => m.cot
+    ? 'Does not match: database has "' + m.part + '", COT has "' + m.cot + '".'
+    : '"' + m.part + '" not found in the COT.').join(' ');
+}
+
+// ═══════════════════════════════════════════════════
 // TAB NAVIGATION
 // ═══════════════════════════════════════════════════
 
